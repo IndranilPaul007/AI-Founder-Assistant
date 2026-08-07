@@ -1,7 +1,12 @@
 import streamlit as st
 import pandas as pd
 import re
+import os
+from dotenv import load_dotenv
 from openai import OpenAI
+
+# Load the environment variables from the .env file
+load_dotenv()
 
 # ---------------------------------------------------------
 # 1. Page Configuration & Session State Initialization
@@ -248,11 +253,10 @@ def is_valid_input(text):
 
 def generate_ai_response(api_key, prompt, system_prompt=""):
     if not api_key:
-        st.error("⚠️ CRITICAL: API Key Missing. Enter it in the sidebar.")
+        st.error("⚠️ CRITICAL: API Key Missing. Enter it in the sidebar or .env file.")
         return None
     try:
         # Initialize OpenAI client to point to an NVIDIA NIM / Nemotron endpoint
-        # If your endpoint URL is different (e.g. OpenRouter), change the base_url here.
         client = OpenAI(
             api_key=api_key,
             base_url="https://integrate.api.nvidia.com/v1"
@@ -312,7 +316,15 @@ with st.sidebar:
     st.markdown("<div class='cinematic-divider'></div>", unsafe_allow_html=True)
     
     user_name = st.text_input("Your Name:", value="Indranil", help="Enter your name to personalize your assistant")
-    api_key = st.text_input("API Key", type="password", help="Enter your API Key")
+    
+    # Environment Variable Logic for API Key
+    env_key = os.getenv("NVIDIA_API_KEY", "")
+    if env_key:
+        api_key = env_key
+        st.success("✅ Secure API Key Loaded")
+    else:
+        api_key = st.text_input("API Key", type="password", help="Enter your NVIDIA API Key")
+        
     st.caption("Powered by: **Nemotron-3-Ultra-550B**")
     
     st.markdown("<div class='cinematic-divider'></div>", unsafe_allow_html=True)
