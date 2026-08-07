@@ -250,7 +250,7 @@ def generate_ai_response(api_key, prompt, system_prompt=""):
     try:
         client = genai.Client(api_key=api_key)
         response = client.models.generate_content(
-            model='gemini-3.6-flash', 
+            model='nemotron-3-ultra-550b-a55b', 
             contents=prompt,
             config=types.GenerateContentConfig(
                 system_instruction=system_prompt if system_prompt else "You are a top-tier Silicon Valley venture partner and Y-Combinator strategist. Provide exhaustive, highly detailed, strictly factual data-driven startup analysis.",
