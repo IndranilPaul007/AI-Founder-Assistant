@@ -267,7 +267,7 @@ def generate_ai_response(api_key, prompt, system_prompt=""):
         messages.append({"role": "user", "content": prompt})
         
         response = client.chat.completions.create(
-            model="nemotron-3-ultra-550b-a55b", 
+            model="nvidia/nemotron-3-ultra-550b-a55b", 
             messages=messages,
             temperature=0.7,
             max_tokens=2048
