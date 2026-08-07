@@ -212,15 +212,35 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# 3. Helper Functions & Validation Logic
+# 3. Helper Functions & Robust Gibberish Filter
 # ---------------------------------------------------------
 def is_valid_input(text):
-    """Validates if input contains meaningful text rather than random gibberish / keyboard mashing."""
-    if not text or len(text.strip()) < 3:
+    """Strictly validates input to block gibberish and keyboard mashing locally."""
+    if not text or len(text.strip()) < 2:
         return False
-    # Check if string has at least one vowel (gibberish keyboard smashes often lack vowels entirely)
-    if not re.search(r'[aeiouAEIOU]', text) and len(text.strip()) > 3:
-        return False
+    
+    clean_text = text.strip()
+    words = clean_text.split()
+    
+    # Common keyboard smash clusters that do not appear in normal English/business terms
+    invalid_clusters = {'dj', 'cf', 'fd', 'gf', 'hg', 'fw', 'df', 'fg', 'jk', 'gh', 'zx', 'cv', 'bn', 'rt'}
+    
+    for word in words:
+        w = re.sub(r'[^a-zA-Z]', '', word).lower()
+        if len(w) > 2:
+            # Check for 3+ consecutive consonants
+            if re.search(r'[^aeiou]{3,}', w):
+                return False
+            # Check vowel ratio (must have balanced vowels)
+            vowels = len(re.findall(r'[aeiou]', w))
+            if vowels / len(w) < 0.15 or vowels / len(w) > 0.85:
+                return False
+            # Check for unnatural keyboard mashing pairs
+            for i in range(len(w) - 1):
+                pair = w[i:i+2]
+                if pair in invalid_clusters:
+                    return False
+                    
     return True
 
 def generate_ai_response(api_key, prompt, system_prompt=""):
@@ -320,7 +340,7 @@ with tab1:
 
         if btn_research:
             if not is_valid_input(idea):
-                st.warning("⚠️ Please enter a meaningful startup concept or idea rather than random characters.")
+                st.warning("⚠️ Invalid input detected. Please enter a meaningful startup concept or idea rather than random characters.")
             else:
                 st.session_state.global_idea = idea
                 with st.spinner("Accessing global market data vectors... Performing deep VC analysis in Rupees (₹)..."):
@@ -426,7 +446,7 @@ with tab2:
 
     if btn_plan:
         if not is_valid_input(startup_name) or not is_valid_input(product_desc):
-            st.warning("⚠️ Please provide a valid startup name and product description rather than random characters.")
+            st.warning("⚠️ Invalid input detected. Please provide a valid startup name and product description rather than random characters.")
         else:
             st.session_state.global_startup_name = startup_name
             st.session_state.global_idea = product_desc
