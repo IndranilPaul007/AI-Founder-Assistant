@@ -1,8 +1,7 @@
 import streamlit as st
 import pandas as pd
 import re
-from google import genai
-from google.genai import types
+from openai import OpenAI
 
 # ---------------------------------------------------------
 # 1. Page Configuration & Session State Initialization
@@ -212,35 +211,39 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# 3. Helper Functions & Robust Gibberish Filter
+# 3. Helper Functions, Nemotron SDK & Gibberish Filter
 # ---------------------------------------------------------
 def is_valid_input(text):
-    """Strictly validates input to block gibberish and keyboard mashing locally."""
+    """Smarter validation to block keyboard mashing without breaking real tech terms."""
     if not text or len(text.strip()) < 2:
         return False
     
-    clean_text = text.strip()
-    words = clean_text.split()
+    clean_text = text.strip().lower()
+    letters_only = re.sub(r'[^a-z]', '', clean_text)
     
-    # Common keyboard smash clusters that do not appear in normal English/business terms
-    invalid_clusters = {'dj', 'cf', 'fd', 'gf', 'hg', 'fw', 'df', 'fg', 'jk', 'gh', 'zx', 'cv', 'bn', 'rt'}
-    
-    for word in words:
-        w = re.sub(r'[^a-zA-Z]', '', word).lower()
-        if len(w) > 2:
-            # Check for 3+ consecutive consonants
-            if re.search(r'[^aeiou]{3,}', w):
-                return False
-            # Check vowel ratio (must have balanced vowels)
-            vowels = len(re.findall(r'[aeiou]', w))
-            if vowels / len(w) < 0.15 or vowels / len(w) > 0.85:
-                return False
-            # Check for unnatural keyboard mashing pairs
-            for i in range(len(w) - 1):
-                pair = w[i:i+2]
-                if pair in invalid_clusters:
-                    return False
-                    
+    # Allow very short authentic acronyms (e.g. "AI", "VR")
+    if len(letters_only) < 3:
+        return True
+        
+    # Rule 1: Long words with zero vowels are usually keyboard smashes
+    vowels = len(re.findall(r'[aeiouy]', letters_only))
+    if len(letters_only) > 5 and vowels == 0:
+        return False
+        
+    # Rule 2: Block 5 or more consecutive consonants (catches 'asdfgh')
+    if re.search(r'[^aeiouy]{5,}', letters_only):
+        return False
+        
+    # Rule 3: Block 4+ repetitive identical characters (e.g. 'jjjj', 'fffff')
+    if re.search(r'(.)\1{3,}', letters_only):
+        return False
+        
+    # Rule 4: Block obvious keyboard mashing patterns
+    smashes = ['asdf', 'qwer', 'zxcv', 'hjkl']
+    for smash in smashes:
+        if smash in letters_only:
+            return False
+            
     return True
 
 def generate_ai_response(api_key, prompt, system_prompt=""):
@@ -248,16 +251,28 @@ def generate_ai_response(api_key, prompt, system_prompt=""):
         st.error("⚠️ CRITICAL: API Key Missing. Enter it in the sidebar.")
         return None
     try:
-        client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(
-            model='nemotron-3-ultra-550b-a55b', 
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=system_prompt if system_prompt else "You are a top-tier Silicon Valley venture partner and Y-Combinator strategist. Provide exhaustive, highly detailed, strictly factual data-driven startup analysis.",
-                temperature=0.7,
-            )
+        # Initialize OpenAI client to point to an NVIDIA NIM / Nemotron endpoint
+        # If your endpoint URL is different (e.g. OpenRouter), change the base_url here.
+        client = OpenAI(
+            api_key=api_key,
+            base_url="https://integrate.api.nvidia.com/v1"
         )
-        return response.text
+        
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        else:
+            messages.append({"role": "system", "content": "You are a top-tier Silicon Valley venture partner and Y-Combinator strategist. Provide exhaustive, highly detailed, strictly factual data-driven startup analysis."})
+            
+        messages.append({"role": "user", "content": prompt})
+        
+        response = client.chat.completions.create(
+            model="nemotron-3-ultra-550b-a55b", 
+            messages=messages,
+            temperature=0.7,
+            max_tokens=2048
+        )
+        return response.choices[0].message.content
     except Exception as e:
         st.error(f"Connection Error: {str(e)}")
         return None
@@ -297,8 +312,8 @@ with st.sidebar:
     st.markdown("<div class='cinematic-divider'></div>", unsafe_allow_html=True)
     
     user_name = st.text_input("Your Name:", value="Indranil", help="Enter your name to personalize your assistant")
-    api_key = st.text_input("API Key", type="password", help="Enter your Google AI Studio API Key")
-    st.caption("Powered by: **Gemini 3.6 Flash**")
+    api_key = st.text_input("API Key", type="password", help="Enter your API Key")
+    st.caption("Powered by: **Nemotron-3-Ultra-550B**")
     
     st.markdown("<div class='cinematic-divider'></div>", unsafe_allow_html=True)
     st.markdown("### Operational Metrics")
