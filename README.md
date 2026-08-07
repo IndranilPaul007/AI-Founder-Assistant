@@ -37,3 +37,7 @@ Built for the **NVIDIA AI Hackathon / Innovation Challenge**, leveraging massive
    git clone [https://github.com/IndranilPaul007/AI-Founder-Assistant.git](https://github.com/IndranilPaul007/AI-Founder-Assistant.git)
    cd AI-Founder-Assistant
    ```
+👨‍💻 Author
+Indranil Paul
+
+AI Developer & Startup Enthusiast
