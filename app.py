@@ -4,6 +4,7 @@ import re
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
+from supabase import create_client, Client
 
 # Load the environment variables from the .env file
 load_dotenv()
@@ -20,10 +21,23 @@ st.set_page_config(
 # Global Session Memory
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
+if "user_email" not in st.session_state:
+    st.session_state.user_email = ""
 if "global_startup_name" not in st.session_state:
     st.session_state.global_startup_name = ""
 if "global_idea" not in st.session_state:
     st.session_state.global_idea = ""
+
+# Initialize Supabase Client
+@st.cache_resource
+def init_supabase() -> Client:
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_KEY")
+    if url and key:
+        return create_client(url, key)
+    return None
+
+supabase = init_supabase()
 
 # ---------------------------------------------------------
 # 2. Cinematic CSS & Guaranteed Animated Background
@@ -226,24 +240,19 @@ def is_valid_input(text):
     clean_text = text.strip().lower()
     letters_only = re.sub(r'[^a-z]', '', clean_text)
     
-    # Allow very short authentic acronyms (e.g. "AI", "VR")
     if len(letters_only) < 3:
         return True
         
-    # Rule 1: Long words with zero vowels are usually keyboard smashes
     vowels = len(re.findall(r'[aeiouy]', letters_only))
     if len(letters_only) > 5 and vowels == 0:
         return False
         
-    # Rule 2: Block 5 or more consecutive consonants (catches 'asdfgh')
     if re.search(r'[^aeiouy]{5,}', letters_only):
         return False
         
-    # Rule 3: Block 4+ repetitive identical characters (e.g. 'jjjj', 'fffff')
     if re.search(r'(.)\1{3,}', letters_only):
         return False
         
-    # Rule 4: Block obvious keyboard mashing patterns
     smashes = ['asdf', 'qwer', 'zxcv', 'hjkl']
     for smash in smashes:
         if smash in letters_only:
@@ -256,7 +265,6 @@ def generate_ai_response(api_key, prompt, system_prompt=""):
         st.error("⚠️ CRITICAL: API Key Missing. Enter it in the sidebar or .env file.")
         return None
     try:
-        # Initialize OpenAI client to point to an NVIDIA NIM / Nemotron endpoint
         client = OpenAI(
             api_key=api_key,
             base_url="https://integrate.api.nvidia.com/v1"
@@ -282,7 +290,7 @@ def generate_ai_response(api_key, prompt, system_prompt=""):
         return None
 
 # ---------------------------------------------------------
-# 4. Authentication Gateway
+# 4. SUPABASE Authentication Gateway
 # ---------------------------------------------------------
 if not st.session_state.logged_in:
     st.markdown("<br><br><br><br>", unsafe_allow_html=True)
@@ -291,20 +299,54 @@ if not st.session_state.logged_in:
         st.markdown("<div class='main-title' style='text-align: center;'>AI Startup Copilot</div>", unsafe_allow_html=True)
         st.markdown("<div class='subtitle' style='text-align: center; border: none;'>Founder Portal</div>", unsafe_allow_html=True)
         
+        if supabase is None:
+            st.error("⚠️ Supabase Backend Disconnected. Please check your SUPABASE_URL and SUPABASE_KEY in Secrets.")
+            st.stop()
+            
         with st.container():
             st.markdown("<h3 style='text-align: center; color: #38BDF8; font-family: Orbitron, sans-serif; margin-bottom: 20px;'>System Authentication</h3>", unsafe_allow_html=True)
-            auth_email = st.text_input("Corporate Email / Founder ID", placeholder="founder@startup.com")
-            auth_pwd = st.text_input("Password", type="password", placeholder="••••••••")
             
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("SECURE LOGIN", type="primary", use_container_width=True):
-                if auth_email and auth_pwd:
-                    st.session_state.logged_in = True
-                    st.rerun()
-                else:
-                    st.error("Access Denied. Credentials Required.")
+            tab_login, tab_signup = st.tabs(["Login", "Sign Up"])
             
-            st.markdown("<p style='text-align: center; font-size: 0.9rem; color: #94A3B8; margin-top: 20px;'>(Type anything to enter, log in has no backend sir.)</p>", unsafe_allow_html=True)
+            # --- LOGIN TAB ---
+            with tab_login:
+                login_email = st.text_input("Corporate Email / Founder ID", placeholder="founder@startup.com", key="l_email")
+                login_pwd = st.text_input("Password", type="password", placeholder="••••••••", key="l_pwd")
+                
+                st.markdown("<br>", unsafe_allow_html=True)
+                if st.button("SECURE LOGIN", type="primary", use_container_width=True, key="btn_login"):
+                    if login_email and login_pwd:
+                        try:
+                            # Contact Supabase Auth
+                            response = supabase.auth.sign_in_with_password({"email": login_email, "password": login_pwd})
+                            st.session_state.logged_in = True
+                            st.session_state.user_email = login_email
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"⚠️ Access Denied: Incorrect email or password.")
+                    else:
+                        st.error("⚠️ Credentials Required.")
+            
+            # --- SIGN UP TAB ---
+            with tab_signup:
+                signup_email = st.text_input("New Email Address", placeholder="founder@startup.com", key="s_email")
+                signup_pwd = st.text_input("Create Password (Min 6 chars)", type="password", placeholder="••••••••", key="s_pwd")
+                
+                st.markdown("<br>", unsafe_allow_html=True)
+                if st.button("CREATE ACCOUNT", type="primary", use_container_width=True, key="btn_signup"):
+                    if signup_email and len(signup_pwd) >= 6:
+                        try:
+                            # Contact Supabase Auth
+                            response = supabase.auth.sign_up({"email": signup_email, "password": signup_pwd})
+                            st.success("✅ Account created successfully! You can now switch to the Login tab.")
+                        except Exception as e:
+                            st.error(f"⚠️ Error creating account: {e}")
+                    elif len(signup_pwd) < 6:
+                        st.error("⚠️ Password must be at least 6 characters long.")
+                    else:
+                        st.error("⚠️ Email and Password are required.")
+            
+            st.markdown("<p style='text-align: center; font-size: 0.9rem; color: #94A3B8; margin-top: 20px;'>🔒 Secured by Supabase Authentication</p>", unsafe_allow_html=True)
     st.stop()
 
 # ---------------------------------------------------------
@@ -312,16 +354,17 @@ if not st.session_state.logged_in:
 # ---------------------------------------------------------
 with st.sidebar:
     st.markdown("<h1>Founder Assistant</h1>", unsafe_allow_html=True)
-    st.caption("AI-Driven Startup Co-Founder")
-    st.markdown("<div class='cinematic-divider'></div>", unsafe_allow_html=True)
     
-    user_name = st.text_input("Your Name:", value="Indranil", help="Enter your name to personalize your assistant")
+    # Display the logged-in user's email prefix as their identity
+    user_identity = st.session_state.user_email.split('@')[0].capitalize()
+    st.caption(f"Authenticated as: **{user_identity}**")
+    st.markdown("<div class='cinematic-divider'></div>", unsafe_allow_html=True)
     
     # Environment Variable Logic for API Key
     env_key = os.getenv("NVIDIA_API_KEY", "")
     if env_key:
         api_key = env_key
-        st.success("✅ Secure API Key Loaded")
+        st.success("✅ Secure AI Core Connected")
     else:
         api_key = st.text_input("API Key", type="password", help="Enter your NVIDIA API Key")
         
@@ -334,15 +377,20 @@ with st.sidebar:
 
     st.markdown("<div class='cinematic-divider'></div>", unsafe_allow_html=True)
     if st.button("DISCONNECT (Log Out)"):
+        # Log out of Supabase
+        try:
+            supabase.auth.sign_out()
+        except:
+            pass
         st.session_state.logged_in = False
+        st.session_state.user_email = ""
         st.rerun()
 
 # ---------------------------------------------------------
 # 6. Header & Personal Greeting
 # ---------------------------------------------------------
 st.markdown("<div class='main-title'>AI Startup Copilot</div>", unsafe_allow_html=True)
-display_name = user_name.strip() if user_name.strip() else "Founder"
-st.markdown(f"<div class='subtitle'>Hello, {display_name}. How can I help you today?</div>", unsafe_allow_html=True)
+st.markdown(f"<div class='subtitle'>Hello, {user_identity}. How can I help you today?</div>", unsafe_allow_html=True)
 
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "Market Research", "Business Planning", "Competitor Intel", "Fundraising Prep", "Task Execution", "Strategic Advisor"
@@ -700,7 +748,7 @@ with tab6:
         
         if "messages" not in st.session_state:
             st.session_state.messages = [
-                {"role": "assistant", "content": f"Welcome {display_name}! I am your AI Strategic Co-Founder. What critical decision or trade-off are you evaluating today? Ask any strategic question, and I will analyze it with pure facts, historical case studies, and exhaustive depth."}
+                {"role": "assistant", "content": f"Welcome! I am your AI Strategic Co-Founder. What critical decision or trade-off are you evaluating today? Ask any strategic question, and I will analyze it with pure facts, historical case studies, and exhaustive depth."}
             ]
 
         chat_container = st.container(height=450)
@@ -721,7 +769,7 @@ with tab6:
                 with chat_container:
                     with st.spinner("Analyzing exhaustive trade-offs against verified business facts & historical case studies..."):
                         sys_instruct = f"""
-                        You are a pragmatic, direct, and elite veteran serial founder advising {display_name}. 
+                        You are a pragmatic, direct, and elite veteran serial founder advising a user. 
                         Provide an EXHAUSTIVE, highly detailed, fact-grounded strategic analysis of the user's dilemma.
 
                         STRICT REQUIREMENTS:
