@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import re
 from google import genai
 from google.genai import types
 
@@ -211,8 +212,17 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# 3. Helper function to call Gemini API
+# 3. Helper Functions & Validation Logic
 # ---------------------------------------------------------
+def is_valid_input(text):
+    """Validates if input contains meaningful text rather than random gibberish / keyboard mashing."""
+    if not text or len(text.strip()) < 3:
+        return False
+    # Check if string has at least one vowel (gibberish keyboard smashes often lack vowels entirely)
+    if not re.search(r'[aeiouAEIOU]', text) and len(text.strip()) > 3:
+        return False
+    return True
+
 def generate_ai_response(api_key, prompt, system_prompt=""):
     if not api_key:
         st.error("⚠️ CRITICAL: API Key Missing. Enter it in the sidebar.")
@@ -259,7 +269,7 @@ if not st.session_state.logged_in:
     st.stop()
 
 # ---------------------------------------------------------
-# 5. Sidebar Configuration (Memory Vault Removed)
+# 5. Sidebar Configuration
 # ---------------------------------------------------------
 with st.sidebar:
     st.markdown("<h1>Founder Assistant</h1>", unsafe_allow_html=True)
@@ -308,64 +318,67 @@ with tab1:
             st.markdown("<br>", unsafe_allow_html=True)
             btn_research = st.button("RUN MARKET PROTOCOL", type="primary")
 
-        if btn_research and idea:
-            st.session_state.global_idea = idea
-            with st.spinner("Accessing global market data vectors... Performing deep VC analysis in Rupees (₹)..."):
-                prompt = f"""
-                Perform an exhaustive, highly detailed Venture Capital Market Intelligence Analysis for this startup idea:
-                - Idea: {idea}
-                - Sector: {industry}
-                - Region: {geography}
+        if btn_research:
+            if not is_valid_input(idea):
+                st.warning("⚠️ Please enter a meaningful startup concept or idea rather than random characters.")
+            else:
+                st.session_state.global_idea = idea
+                with st.spinner("Accessing global market data vectors... Performing deep VC analysis in Rupees (₹)..."):
+                    prompt = f"""
+                    Perform an exhaustive, highly detailed Venture Capital Market Intelligence Analysis for this startup idea:
+                    - Idea: {idea}
+                    - Sector: {industry}
+                    - Region: {geography}
 
-                CRITICAL MANDATORY INSTRUCTIONS:
-                - ALL FINANCIAL FIGURES, MARKET SIZES, COST ESTIMATES, AND PRICING MUST BE PRESENTED STRICTLY IN INDIAN RUPEES (₹ / INR). Use standard notation (e.g., ₹12 Lakhs, ₹1.5 Crore, ₹50,000). DO NOT use USD ($).
-                - Use plain text for numbers and currencies. DO NOT use LaTeX formatting or math blocks.
-                - Provide deep, highly specific, numerical, and strictly factual insights. Avoid fluff or high-level generalizations.
+                    CRITICAL MANDATORY INSTRUCTIONS:
+                    - ALL FINANCIAL FIGURES, MARKET SIZES, COST ESTIMATES, AND PRICING MUST BE PRESENTED STRICTLY IN INDIAN RUPEES (₹ / INR). Use standard notation (e.g., ₹12 Lakhs, ₹1.5 Crore, ₹50,000). DO NOT use USD ($).
+                    - Use plain text for numbers and currencies. DO NOT use LaTeX formatting or math blocks.
+                    - Provide deep, highly specific, numerical, and strictly factual insights. Avoid fluff or high-level generalizations.
 
-                Structure your response into 8 comprehensive sections:
+                    Structure your response into 8 comprehensive sections:
 
-                ## 1. Executive Summary & Market Opportunity Score
-                - **Opportunity Score (0-100)**: Give a score with clear justification.
-                - **Core Thesis**: Why is now the exact right time to build this?
+                    ## 1. Executive Summary & Market Opportunity Score
+                    - **Opportunity Score (0-100)**: Give a score with clear justification.
+                    - **Core Thesis**: Why is now the exact right time to build this?
 
-                ## 2. Granular Ideal Customer Profile (ICP) & Buyer Persona
-                - **Target Role & Decision Maker**: Specific title, company size, team headcount.
-                - **Primary Pain Points**: 3 specific operational headaches they face today.
-                - **Buying Triggers & Budget Authority**: What causes them to allocate budget right now in ₹? Who holds sign-off power?
+                    ## 2. Granular Ideal Customer Profile (ICP) & Buyer Persona
+                    - **Target Role & Decision Maker**: Specific title, company size, team headcount.
+                    - **Primary Pain Points**: 3 specific operational headaches they face today.
+                    - **Buying Triggers & Budget Authority**: What causes them to allocate budget right now in ₹? Who holds sign-off power?
 
-                ## 3. Comprehensive Market Sizing (TAM / SAM / SOM in ₹ / INR)
-                Provide a detailed Markdown Table with columns: [Segment, Estimated Value in ₹ (INR), Sizing Logic & Assumptions].
-                - **Total Addressable Market (TAM)**: Valuation in ₹ Crores.
-                - **Serviceable Addressable Market (SAM)**: Regional/niche target segment valuation in ₹ Crores.
-                - **Serviceable Obtainable Market (SOM)**: Realistic 3-year achievable target revenue in ₹ Crores/Lakhs.
+                    ## 3. Comprehensive Market Sizing (TAM / SAM / SOM in ₹ / INR)
+                    Provide a detailed Markdown Table with columns: [Segment, Estimated Value in ₹ (INR), Sizing Logic & Assumptions].
+                    - **Total Addressable Market (TAM)**: Valuation in ₹ Crores.
+                    - **Serviceable Addressable Market (SAM)**: Regional/niche target segment valuation in ₹ Crores.
+                    - **Serviceable Obtainable Market (SOM)**: Realistic 3-year achievable target revenue in ₹ Crores/Lakhs.
 
-                ## 4. Scenario & Sensitivity Analysis Matrix (in ₹ / INR)
-                Provide a Markdown Table for 3 financial performance scenarios over 24 months:
-                - **Bear Case (Pessimistic)**: Conservative adoption, revenue in ₹, churn risk.
-                - **Base Case (Realistic)**: Steady growth, revenue in ₹, target unit economics.
-                - **Bull Case (Optimistic)**: Viral adoption, enterprise expansion, revenue in ₹.
+                    ## 4. Scenario & Sensitivity Analysis Matrix (in ₹ / INR)
+                    Provide a Markdown Table for 3 financial performance scenarios over 24 months:
+                    - **Bear Case (Pessimistic)**: Conservative adoption, revenue in ₹, churn risk.
+                    - **Base Case (Realistic)**: Steady growth, revenue in ₹, target unit economics.
+                    - **Bull Case (Optimistic)**: Viral adoption, enterprise expansion, revenue in ₹.
 
-                ## 5. Macro Trends & Regulatory Vectors
-                - **Industry Tailwinds**: 3 macro shifts (economic, behavioral, tech) accelerating demand.
-                - **Regulatory & Compliance Drivers**: Key Indian and global acts, laws, or compliance factors creating urgency (e.g., DPDP Act, GST compliance, RBI frameworks).
+                    ## 5. Macro Trends & Regulatory Vectors
+                    - **Industry Tailwinds**: 3 macro shifts (economic, behavioral, tech) accelerating demand.
+                    - **Regulatory & Compliance Drivers**: Key Indian and global acts, laws, or compliance factors creating urgency (e.g., DPDP Act, GST compliance, RBI frameworks).
 
-                ## 6. Go-To-Market (GTM) Channels & Unit Economics Estimates (in ₹)
-                - **Top 3 Acquisition Channels**: Highly specific routes to acquire first 100 users.
-                - **Estimated CAC & Payback Period**: Target Customer Acquisition Cost in ₹ and month payback period.
+                    ## 6. Go-To-Market (GTM) Channels & Unit Economics Estimates (in ₹)
+                    - **Top 3 Acquisition Channels**: Highly specific routes to acquire first 100 users.
+                    - **Estimated CAC & Payback Period**: Target Customer Acquisition Cost in ₹ and month payback period.
 
-                ## 7. Strategic Pros & Cons of this Market
-                - **Pros**: 3 major advantages of entering this specific niche.
-                - **Cons & Hidden Risks**: 3 brutal, unvarnished realities or systemic risks the founder must prepare for.
+                    ## 7. Strategic Pros & Cons of this Market
+                    - **Pros**: 3 major advantages of entering this specific niche.
+                    - **Cons & Hidden Risks**: 3 brutal, unvarnished realities or systemic risks the founder must prepare for.
 
-                ## 8. 48-Hour Tactical Validation Experiment
-                - **Step 1: Landing Page & Hook Strategy** (Exact headline and core value prop).
-                - **Step 2: Outbound Script / Cold Outreach Hook** (Exact subject line and cold outreach copy template).
-                - **Step 3: Minimum Viable Signals (MVS)** (Target metrics in ₹ / signups to prove demand within 48 hours).
-                """
-                result = generate_ai_response(api_key, prompt)
-                if result:
-                    st.markdown("#### Deep Market Intelligence Completed:")
-                    st.markdown(result)
+                    ## 8. 48-Hour Tactical Validation Experiment
+                    - **Step 1: Landing Page & Hook Strategy** (Exact headline and core value prop).
+                    - **Step 2: Outbound Script / Cold Outreach Hook** (Exact subject line and cold outreach copy template).
+                    - **Step 3: Minimum Viable Signals (MVS)** (Target metrics in ₹ / signups to prove demand within 48 hours).
+                    """
+                    result = generate_ai_response(api_key, prompt)
+                    if result:
+                        st.markdown("#### Deep Market Intelligence Completed:")
+                        st.markdown(result)
 
 # ---------------------------------------------------------
 # TAB 2: BUSINESS PLANNING
@@ -411,59 +424,62 @@ with tab2:
             st.markdown("<br>", unsafe_allow_html=True)
             btn_plan = st.button("BUILD BUSINESS MODEL", type="primary")
 
-    if btn_plan and startup_name:
-        st.session_state.global_startup_name = startup_name
-        st.session_state.global_idea = product_desc
-        with st.spinner("Synthesizing operational architecture, financial model in ₹, & unicorn scaling roadmap..."):
-            prompt = f"""
-            Create an exhaustive, professional Lean Business Canvas, Unit Economics blueprint in ₹ (INR), and a Realistic $1B+ Unicorn Scaling Roadmap for:
-            - Startup Name: {startup_name}
-            - Product Description & Features: {product_desc}
-            - Target Country / Region: {target_country}
-            - Core Differentiator (UVP): {value_prop}
-            - Revenue Model: {revenue_model}
+    if btn_plan:
+        if not is_valid_input(startup_name) or not is_valid_input(product_desc):
+            st.warning("⚠️ Please provide a valid startup name and product description rather than random characters.")
+        else:
+            st.session_state.global_startup_name = startup_name
+            st.session_state.global_idea = product_desc
+            with st.spinner("Synthesizing operational architecture, financial model in ₹, & unicorn scaling roadmap..."):
+                prompt = f"""
+                Create an exhaustive, professional Lean Business Canvas, Unit Economics blueprint in ₹ (INR), and a Realistic $1B+ Unicorn Scaling Roadmap for:
+                - Startup Name: {startup_name}
+                - Product Description & Features: {product_desc}
+                - Target Country / Region: {target_country}
+                - Core Differentiator (UVP): {value_prop}
+                - Revenue Model: {revenue_model}
 
-            CRITICAL MANDATORY INSTRUCTIONS:
-            - ALL FINANCIAL FIGURES, COSTS, PRICING TIERS, CAC, LTV, AND REVENUE TARGETS MUST BE PRESENTED STRICTLY IN INDIAN RUPEES (₹ / INR). Use standard notation (e.g., ₹15 Lakhs, ₹2.5 Crores). DO NOT use USD ($).
-            - Use plain text formatting. DO NOT use LaTeX formatting or math blocks.
+                CRITICAL MANDATORY INSTRUCTIONS:
+                - ALL FINANCIAL FIGURES, COSTS, PRICING TIERS, CAC, LTV, AND REVENUE TARGETS MUST BE PRESENTED STRICTLY IN INDIAN RUPEES (₹ / INR). Use standard notation (e.g., ₹15 Lakhs, ₹2.5 Crores). DO NOT use USD ($).
+                - Use plain text formatting. DO NOT use LaTeX formatting or math blocks.
 
-            Output the analysis in the following comprehensive sections:
+                Output the analysis in the following comprehensive sections:
 
-            ## 1. Comprehensive Lean Business Canvas
-            Provide a detailed Markdown Table covering all standard Lean Canvas blocks (Problem, Solution, UVP, Unfair Advantage, Customer Segments, Key Metrics, Channels, Cost Structure in ₹, Revenue Streams in ₹).
+                ## 1. Comprehensive Lean Business Canvas
+                Provide a detailed Markdown Table covering all standard Lean Canvas blocks (Problem, Solution, UVP, Unfair Advantage, Customer Segments, Key Metrics, Channels, Cost Structure in ₹, Revenue Streams in ₹).
 
-            ## 2. Granular Unit Economics & Financial Benchmarks (in ₹ / INR)
-            - **Target Unit Economics**: LTV in ₹, CAC in ₹, LTV:CAC Ratio (target 3:1+), Gross Margin %, Payback Period in months.
-            - **Detailed Cost Structure Breakdown in ₹**: Fixed vs. variable operational costs tailored to operating in {target_country} (engineering salaries in ₹/month, server compute in ₹, office lease in ₹, compliance in ₹).
-            - **Pricing Tiers in ₹**: 3 clear pricing plans with exact feature limits and monthly/annual fees in Indian Rupees.
-            - **Revenue Model Assessment**: Pros, cons, and cash-flow risk mitigation for {revenue_model}.
+                ## 2. Granular Unit Economics & Financial Benchmarks (in ₹ / INR)
+                - **Target Unit Economics**: LTV in ₹, CAC in ₹, LTV:CAC Ratio (target 3:1+), Gross Margin %, Payback Period in months.
+                - **Detailed Cost Structure Breakdown in ₹**: Fixed vs. variable operational costs tailored to operating in {target_country} (engineering salaries in ₹/month, server compute in ₹, office lease in ₹, compliance in ₹).
+                - **Pricing Tiers in ₹**: 3 clear pricing plans with exact feature limits and monthly/annual fees in Indian Rupees.
+                - **Revenue Model Assessment**: Pros, cons, and cash-flow risk mitigation for {revenue_model}.
 
-            ## 3. Realistic Step-by-Step Roadmap to $1B+ (₹8,300+ Crore) Unicorn Scale
-            Provide a realistic, phase-by-phase playbook for scaling from launch to unicorn status, explicitly identifying major failure points and tactical solutions at each stage:
+                ## 3. Realistic Step-by-Step Roadmap to $1B+ (₹8,300+ Crore) Unicorn Scale
+                Provide a realistic, phase-by-phase playbook for scaling from launch to unicorn status, explicitly identifying major failure points and tactical solutions at each stage:
 
-            ### Phase 1: Zero to One - Product-Market Fit (₹0 to ₹8 Crore ARR / $1M)
-            - **Key Strategic Milestones**: Team size, active customer benchmarks, retention thresholds.
-            - **Critical Problems & Failure Points**: Top 3 existential traps at this stage.
-            - **Tactical Solutions & Playbook**: Step-by-step actions to resolve each problem.
+                ### Phase 1: Zero to One - Product-Market Fit (₹0 to ₹8 Crore ARR / $1M)
+                - **Key Strategic Milestones**: Team size, active customer benchmarks, retention thresholds.
+                - **Critical Problems & Failure Points**: Top 3 existential traps at this stage.
+                - **Tactical Solutions & Playbook**: Step-by-step actions to resolve each problem.
 
-            ### Phase 2: Repeatable Engine & Growth (₹8 Crore to ₹80 Crore ARR / $10M)
-            - **Key Strategic Milestones**: Channel scaling, leadership hiring, unit economics stabilization in {target_country}.
-            - **Critical Problems & Failure Points**: Sales bottlenecks, rising CAC in ₹, tech debt.
-            - **Tactical Solutions & Playbook**: Step-by-step operational fixes.
+                ### Phase 2: Repeatable Engine & Growth (₹8 Crore to ₹80 Crore ARR / $10M)
+                - **Key Strategic Milestones**: Channel scaling, leadership hiring, unit economics stabilization in {target_country}.
+                - **Critical Problems & Failure Points**: Sales bottlenecks, rising CAC in ₹, tech debt.
+                - **Tactical Solutions & Playbook**: Step-by-step operational fixes.
 
-            ### Phase 3: Scale-Up & Market Expansion (₹80 Crore to ₹400 Crore ARR / $50M)
-            - **Key Strategic Milestones**: International expansion beyond {target_country}, multi-product strategy, strategic partnerships.
-            - **Critical Problems & Failure Points**: Bureaucracy, market saturation, aggressive incumbent response.
-            - **Tactical Solutions & Playbook**: Tactical maneuvers to maintain growth momentum.
+                ### Phase 3: Scale-Up & Market Expansion (₹80 Crore to ₹400 Crore ARR / $50M)
+                - **Key Strategic Milestones**: International expansion beyond {target_country}, multi-product strategy, strategic partnerships.
+                - **Critical Problems & Failure Points**: Bureaucracy, market saturation, aggressive incumbent response.
+                - **Tactical Solutions & Playbook**: Tactical maneuvers to maintain growth momentum.
 
-            ### Phase 4: Hypergrowth to $1B+ Unicorn Status (₹800+ Crore ARR / ₹8,300+ Crore Valuation)
-            - **Key Strategic Milestones**: Dominant market share, platform ecosystem, IPO or major liquidity readiness.
-            - **Critical Problems & Failure Points**: Regulatory scrutiny, macroeconomic headwinds, executive friction.
-            - **Tactical Solutions & Playbook**: Governance and defense strategies to lock in unicorn status.
-            """
-            result = generate_ai_response(api_key, prompt)
-            if result:
-                st.markdown(result)
+                ### Phase 4: Hypergrowth to $1B+ Unicorn Status (₹800+ Crore ARR / ₹8,300+ Crore Valuation)
+                - **Key Strategic Milestones**: Dominant market share, platform ecosystem, IPO or major liquidity readiness.
+                - **Critical Problems & Failure Points**: Regulatory scrutiny, macroeconomic headwinds, executive friction.
+                - **Tactical Solutions & Playbook**: Governance and defense strategies to lock in unicorn status.
+                """
+                result = generate_ai_response(api_key, prompt)
+                if result:
+                    st.markdown(result)
 
 # ---------------------------------------------------------
 # TAB 3: COMPETITOR ANALYSIS (Auto-Discover 20+ Competitors)
@@ -482,39 +498,42 @@ with tab3:
             st.markdown("<br>", unsafe_allow_html=True)
             btn_comp = st.button("EXECUTE COMPETITIVE BENCHMARK", type="primary")
 
-    if btn_comp and my_startup:
-        with st.spinner("Analyzing competitive landscape & auto-discovering top 20 competitors..."):
-            prompt = f"""
-            Perform an exhaustive, institutional-grade competitive intelligence analysis for:
-            - Target Startup: {my_startup}
-            - Competitors Provided by User: {competitors if competitors.strip() else 'NONE PROVIDED - YOU MUST AUTO-DISCOVER AND LIST AT LEAST 20 MAIN COMPETITORS IN THIS DOMAIN.'}
-            - User's Defensive Advantage: {differentiator}
+    if btn_comp:
+        if not is_valid_input(my_startup):
+            st.warning("⚠️ Please provide a valid product name.")
+        else:
+            with st.spinner("Analyzing competitive landscape & auto-discovering top 20 competitors..."):
+                prompt = f"""
+                Perform an exhaustive, institutional-grade competitive intelligence analysis for:
+                - Target Startup: {my_startup}
+                - Competitors Provided by User: {competitors if competitors.strip() else 'NONE PROVIDED - YOU MUST AUTO-DISCOVER AND LIST AT LEAST 20 MAIN COMPETITORS IN THIS DOMAIN.'}
+                - User's Defensive Advantage: {differentiator}
 
-            CRITICAL MANDATORY INSTRUCTIONS:
-            - YOU MUST IDENTIFY, NAME, AND ANALYZE AT LEAST 20 MAIN COMPETITORS (Direct, Indirect, Legacy Incumbents, and Emerging Startups globally and in India).
-            - ALL FINANCIALS, PRICING, AND REVENUE NUMBERS MUST BE IN INDIAN RUPEES (₹ / INR). Use plain text notation. DO NOT use LaTeX formatting or USD.
+                CRITICAL MANDATORY INSTRUCTIONS:
+                - YOU MUST IDENTIFY, NAME, AND ANALYZE AT LEAST 20 MAIN COMPETITORS (Direct, Indirect, Legacy Incumbents, and Emerging Startups globally and in India).
+                - ALL FINANCIALS, PRICING, AND REVENUE NUMBERS MUST BE IN INDIAN RUPEES (₹ / INR). Use plain text notation. DO NOT use LaTeX formatting or USD.
 
-            Output Structure:
+                Output Structure:
 
-            ## 1. Master Competitor Directory (At least 20 Main Competitors)
-            Provide an exhaustive, numbered list of AT LEAST 20 COMPETITORS across the industry. For EACH of the 20 competitors, provide:
-            - **Competitor Name & Origin**: (e.g., Company Name, Country/HQ)
-            - **In-Depth Business Model & Pricing Structure (in ₹)**: How they make money, pricing tiers in ₹, go-to-market model.
-            - **Critical Weaknesses & Where They Lack**: Their major product flaws, customer complaints, legacy tech debt, high prices, or poor customer support.
-            - **Tactical Exploit Strategy**: Exactly how {my_startup} can take advantage of this competitor's weakness to steal market share.
+                ## 1. Master Competitor Directory (At least 20 Main Competitors)
+                Provide an exhaustive, numbered list of AT LEAST 20 COMPETITORS across the industry. For EACH of the 20 competitors, provide:
+                - **Competitor Name & Origin**: (e.g., Company Name, Country/HQ)
+                - **In-Depth Business Model & Pricing Structure (in ₹)**: How they make money, pricing tiers in ₹, go-to-market model.
+                - **Critical Weaknesses & Where They Lack**: Their major product flaws, customer complaints, legacy tech debt, high prices, or poor customer support.
+                - **Tactical Exploit Strategy**: Exactly how {my_startup} can take advantage of this competitor's weakness to steal market share.
 
-            ## 2. High-Level Summary Matrix Table
-            Provide a Markdown Summary Table comparing {my_startup} against top competitors across: [Feature Set, Pricing Tier (in ₹), Target Audience, Key Bottleneck, Win Strategy].
+                ## 2. High-Level Summary Matrix Table
+                Provide a Markdown Summary Table comparing {my_startup} against top competitors across: [Feature Set, Pricing Tier (in ₹), Target Audience, Key Bottleneck, Win Strategy].
 
-            ## 3. Strategic Blind Spots & Incumbent Vulnerabilities
-            Identify 3 massive industry blind spots where legacy incumbents are failing users today.
+                ## 3. Strategic Blind Spots & Incumbent Vulnerabilities
+                Identify 3 massive industry blind spots where legacy incumbents are failing users today.
 
-            ## 4. Defensible Positioning & Moat Lock-in Plan
-            A 3-step action plan to protect {my_startup} from retaliatory price wars or features copied by incumbents.
-            """
-            result = generate_ai_response(api_key, prompt)
-            if result:
-                st.markdown(result)
+                ## 4. Defensible Positioning & Moat Lock-in Plan
+                A 3-step action plan to protect {my_startup} from retaliatory price wars or features copied by incumbents.
+                """
+                result = generate_ai_response(api_key, prompt)
+                if result:
+                    st.markdown(result)
 
 # ---------------------------------------------------------
 # TAB 4: FUNDRAISING PREPARATION (Advanced & Detailed)
@@ -589,37 +608,40 @@ with tab5:
             st.markdown("<br>", unsafe_allow_html=True)
             btn_task = st.button("GENERATE EXECUTION PLAN", type="primary")
 
-    if btn_task and primary_goal:
-        with st.spinner("Deconstructing strategy into realistic day-by-day operational tasks..."):
-            prompt = f"""
-            Act as an elite Chief of Staff and Operations Lead. Create a hyper-realistic, granular 30-day execution roadmap to achieve:
-            - Goal: {primary_goal}
-            - Team Capacity: {weekly_hours} hrs/wk
+    if btn_task:
+        if not is_valid_input(primary_goal):
+            st.warning("⚠️ Please provide a meaningful objective.")
+        else:
+            with st.spinner("Deconstructing strategy into realistic day-by-day operational tasks..."):
+                prompt = f"""
+                Act as an elite Chief of Staff and Operations Lead. Create a hyper-realistic, granular 30-day execution roadmap to achieve:
+                - Goal: {primary_goal}
+                - Team Capacity: {weekly_hours} hrs/wk
 
-            CRITICAL MANDATORY INSTRUCTIONS:
-            - ALL FINANCIAL METRICS, BUDGETS, AND COSTS MUST BE IN INDIAN RUPEES (₹ / INR). Use plain text formatting. DO NOT use LaTeX.
-            - Give realistic, pragmatic, step-by-step instructions. Recommend specific real-world tools, software, scripts, and workflows.
+                CRITICAL MANDATORY INSTRUCTIONS:
+                - ALL FINANCIAL METRICS, BUDGETS, AND COSTS MUST BE IN INDIAN RUPEES (₹ / INR). Use plain text formatting. DO NOT use LaTeX.
+                - Give realistic, pragmatic, step-by-step instructions. Recommend specific real-world tools, software, scripts, and workflows.
 
-            Structure output into:
+                Structure output into:
 
-            ## 1. Mathematical Growth Conversion Formula
-            - Breakdown exact conversion funnel numbers (e.g., "To reach target goal, send X outbound messages via LinkedIn/Email, achieve Y% open rate, convert Z% into demo calls, close W paying accounts at ₹XX per account").
+                ## 1. Mathematical Growth Conversion Formula
+                - Breakdown exact conversion funnel numbers (e.g., "To reach target goal, send X outbound messages via LinkedIn/Email, achieve Y% open rate, convert Z% into demo calls, close W paying accounts at ₹XX per account").
 
-            ## 2. Recommended Tech Stack & Tooling Suite
-            - List exact tools for Outreach, CRM, Analytics, Automations, Payment Gateways (e.g., Razorpay/Stripe), and Project Management.
+                ## 2. Recommended Tech Stack & Tooling Suite
+                - List exact tools for Outreach, CRM, Analytics, Automations, Payment Gateways (e.g., Razorpay/Stripe), and Project Management.
 
-            ## 3. Granular Weekly Operational Sprints
-            - **Week 1 (Days 1-7): Infrastructure & Outbound Engine Setup** (Day-by-day deliverables).
-            - **Week 2 (Days 8-14): Campaign Execution & Initial Demos** (Day-by-day deliverables).
-            - **Week 3 (Days 15-21): Conversion, Negotiation, & Closing** (Day-by-day deliverables).
-            - **Week 4 (Days 22-30): Onboarding, Retainers in ₹, & Process Documentation** (Day-by-day deliverables).
+                ## 3. Granular Weekly Operational Sprints
+                - **Week 1 (Days 1-7): Infrastructure & Outbound Engine Setup** (Day-by-day deliverables).
+                - **Week 2 (Days 8-14): Campaign Execution & Initial Demos** (Day-by-day deliverables).
+                - **Week 3 (Days 15-21): Conversion, Negotiation, & Closing** (Day-by-day deliverables).
+                - **Week 4 (Days 22-30): Onboarding, Retainers in ₹, & Process Documentation** (Day-by-day deliverables).
 
-            ## 4. Execution Bottlenecks & Operational Contingency Triggers
-            - Identify top 3 single points of failure in this sprint and exact backup triggers if targets are missed by Day 15.
-            """
-            result = generate_ai_response(api_key, prompt)
-            if result:
-                st.markdown(result)
+                ## 4. Execution Bottlenecks & Operational Contingency Triggers
+                - Identify top 3 single points of failure in this sprint and exact backup triggers if targets are missed by Day 15.
+                """
+                result = generate_ai_response(api_key, prompt)
+                if result:
+                    st.markdown(result)
 
 # ---------------------------------------------------------
 # TAB 6: STRATEGIC DECISION SUPPORT (Strict Facts & In-Depth)
@@ -641,29 +663,32 @@ with tab6:
                     st.markdown(msg["content"])
 
         if user_input := st.chat_input("Input strategic trade-off, e.g., 'Should we pivot from B2C to B2B enterprise in India?"):
-            with chat_container:
-                st.chat_message("user").markdown(user_input)
-            
-            st.session_state.messages.append({"role": "user", "content": user_input})
-            
-            with chat_container:
-                with st.spinner("Analyzing exhaustive trade-offs against verified business facts & historical case studies..."):
-                    sys_instruct = f"""
-                    You are a pragmatic, direct, and elite veteran serial founder advising {display_name}. 
-                    Provide an EXHAUSTIVE, highly detailed, fact-grounded strategic analysis of the user's dilemma.
+            if not is_valid_input(user_input):
+                st.warning("⚠️ Please ask a valid strategic question.")
+            else:
+                with chat_container:
+                    st.chat_message("user").markdown(user_input)
+                
+                st.session_state.messages.append({"role": "user", "content": user_input})
+                
+                with chat_container:
+                    with st.spinner("Analyzing exhaustive trade-offs against verified business facts & historical case studies..."):
+                        sys_instruct = f"""
+                        You are a pragmatic, direct, and elite veteran serial founder advising {display_name}. 
+                        Provide an EXHAUSTIVE, highly detailed, fact-grounded strategic analysis of the user's dilemma.
 
-                    STRICT REQUIREMENTS:
-                    1. ALL FINANCIAL REFERENCES AND COST TRADE-OFFS MUST BE PRESENTED IN INDIAN RUPEES (₹ / INR).
-                    2. STRICT FACTUAL GROUNDING: Rely entirely on verified business principles, real economic data, and true startup case studies. Do not speculate or invent ungrounded claims.
-                    3. Deeply break down the PROS and CONS of each option.
-                    4. Analyze SECOND-ORDER EFFECTS (what happens 6, 12, and 24 months down the road as a direct consequence of this choice).
-                    5. Identify CRITICAL RISK VECTORS and mitigation playbooks for each path.
-                    6. Cite real historical startup case studies (e.g., Stripe, Airbnb, Razorpay, Swiggy, Brex, Freshworks) that faced this exact crossroad and how they resolved it.
-                    7. Conclude with a definitive, unvarnished, action-oriented FINAL RECOMMENDATION—do not hedge or give generic "it depends" answers. Make the call.
-                    8. Use plain text formatting. DO NOT use LaTeX formatting or math blocks.
-                    """
-                    reply = generate_ai_response(api_key, user_input, system_prompt=sys_instruct)
-                    
-                    if reply:
-                        st.chat_message("assistant").markdown(reply)
-                        st.session_state.messages.append({"role": "assistant", "content": reply})
+                        STRICT REQUIREMENTS:
+                        1. ALL FINANCIAL REFERENCES AND COST TRADE-OFFS MUST BE PRESENTED IN INDIAN RUPEES (₹ / INR).
+                        2. STRICT FACTUAL GROUNDING: Rely entirely on verified business principles, real economic data, and true startup case studies. Do not speculate or invent ungrounded claims.
+                        3. Deeply break down the PROS and CONS of each option.
+                        4. Analyze SECOND-ORDER EFFECTS (what happens 6, 12, and 24 months down the road as a direct consequence of this choice).
+                        5. Identify CRITICAL RISK VECTORS and mitigation playbooks for each path.
+                        6. Cite real historical startup case studies (e.g., Stripe, Airbnb, Razorpay, Swiggy, Brex, Freshworks) that faced this exact crossroad and how they resolved it.
+                        7. Conclude with a definitive, unvarnished, action-oriented FINAL RECOMMENDATION—do not hedge or give generic "it depends" answers. Make the call.
+                        8. Use plain text formatting. DO NOT use LaTeX formatting or math blocks.
+                        """
+                        reply = generate_ai_response(api_key, user_input, system_prompt=sys_instruct)
+                        
+                        if reply:
+                            st.chat_message("assistant").markdown(reply)
+                            st.session_state.messages.append({"role": "assistant", "content": reply})
