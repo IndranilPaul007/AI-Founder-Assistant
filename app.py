@@ -69,7 +69,20 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Space+Grotesk:wght@300;400;700&display=swap');
 
     /* Nuke Streamlit Top Header & Bottom Manage Badges */
-    [data-testid="stHeader"] { background-color: transparent !important; }
+    /* Make the header invisible but keep it in the structure */
+    [data-testid="stHeader"] { background: transparent !important; }
+    
+    /* Force the sidebar expand arrow to show up with a cyberpunk style */
+    [data-testid="collapsedControl"] { 
+        visibility: visible !important; 
+        display: flex !important; 
+        color: #38BDF8 !important; 
+        background: rgba(15, 23, 42, 0.8) !important;
+        border-radius: 8px !important;
+        border: 1px solid rgba(56, 189, 248, 0.4) !important;
+        margin-top: 10px !important;
+    }
+    
     [data-testid="stToolbar"] { visibility: hidden !important; display: none !important; }
     [data-testid="stDecoration"] { visibility: hidden !important; display: none !important; }
     .stDeployButton { display: none !important; }
