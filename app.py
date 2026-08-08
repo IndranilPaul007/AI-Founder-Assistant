@@ -40,7 +40,7 @@ if "results" not in st.session_state:
         "execution": None
     }
 
-# NEW: State for viewing history from the sidebar
+# State for viewing history from the sidebar
 if "viewing_history" not in st.session_state:
     st.session_state.viewing_history = None
 
@@ -56,11 +56,21 @@ def init_supabase() -> Client:
 supabase = init_supabase()
 
 # ---------------------------------------------------------
-# 2. Cinematic CSS & Guaranteed Animated Background
+# 2. Cinematic CSS & UI Hiding (Removes Top-Right Icons)
 # ---------------------------------------------------------
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Space+Grotesk:wght@300;400;700&display=swap');
+
+    /* =========================================
+       NUKING THE STREAMLIT TOP RIGHT HEADER
+       ========================================= */
+    [data-testid="stHeader"] { visibility: hidden !important; display: none !important; }
+    [data-testid="stToolbar"] { visibility: hidden !important; display: none !important; }
+    [data-testid="stDecoration"] { visibility: hidden !important; display: none !important; }
+    .stDeployButton { display: none !important; }
+    #MainMenu { visibility: hidden !important; }
+    footer { visibility: hidden !important; }
 
     /* Protect Streamlit Icons */
     html, body, p, h1, h2, h3, h4, h5, h6, input, textarea, select, button {
@@ -98,10 +108,6 @@ st.markdown("""
     @keyframes scrollGrid {
         0% { background-position: 0px 0px; }
         100% { background-position: 40px 40px; }
-    }
-
-    [data-testid="stHeader"] {
-        background-color: transparent !important;
     }
 
     /* Sidebar Styling */
@@ -227,14 +233,6 @@ st.markdown("""
         box-shadow: 0 0 10px rgba(56, 189, 248, 0.4) !important;
     }
 
-    /* Metrics Display */
-    div[data-testid="stMetricValue"] > div {
-        font-family: 'Orbitron', sans-serif;
-        color: #38BDF8;
-        text-shadow: 0 0 15px rgba(56, 189, 248, 0.6);
-        font-size: 1.8rem !important;
-    }
-    
     /* Decorative Divider Line */
     .cinematic-divider {
         height: 2px;
@@ -265,7 +263,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# 3. Helper Functions, Nemotron SDK, Gibberish Filter & PPT
+# 3. Helper Functions, Nemotron SDK & PPT Generator
 # ---------------------------------------------------------
 def is_valid_input(text):
     if not text or len(text.strip()) < 2:
@@ -345,11 +343,12 @@ def create_ppt(report_text, report_title):
     ppt_stream.seek(0)
     return ppt_stream
 
+# We removed the "Save" button here because saving is now fully automatic!
 def display_report_actions(report_text, report_title, state_key):
     st.markdown(report_text)
     st.markdown("<br>", unsafe_allow_html=True)
     
-    col1, col2, col3 = st.columns([1, 1, 1])
+    col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
     with col1:
         st.download_button(
             label="📄 Download (.md)", 
@@ -370,25 +369,16 @@ def display_report_actions(report_text, report_title, state_key):
             )
         except Exception as e:
             st.error(f"PPT Compilation Error: {e}")
-            
-    with col3:
-        if st.button("💾 Save to Profile", key=f"sv_{state_key}"):
-            if supabase:
-                try:
-                    supabase.table("saved_reports").insert({
-                        "user_email": st.session_state.user_email,
-                        "report_type": report_title,
-                        "content": report_text
-                    }).execute()
-                    st.success("✅ Saved to database!")
-                except Exception as e:
-                    st.error(f"Failed to save: {e}")
-            else:
-                st.error("Supabase client disconnected.")
 
 # ---------------------------------------------------------
-# 4. SUPABASE Authentication Gateway
+# 4. SUPABASE Authentication Gateway & URL Refresh Fix
 # ---------------------------------------------------------
+
+# FIX FOR BROWSER REFRESH LOGOUTS: Check URL Query Parameters
+if "session_user" in st.query_params:
+    st.session_state.logged_in = True
+    st.session_state.user_email = st.query_params["session_user"]
+
 if not st.session_state.logged_in:
     st.markdown("<br><br><br><br>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 1.5, 1])
@@ -416,6 +406,10 @@ if not st.session_state.logged_in:
                             response = supabase.auth.sign_in_with_password({"email": login_email, "password": login_pwd})
                             st.session_state.logged_in = True
                             st.session_state.user_email = login_email
+                            
+                            # SILENTLY ADD SESSION TO URL SO IT SURVIVES A PAGE REFRESH
+                            st.query_params["session_user"] = login_email
+                            
                             st.rerun()
                         except Exception as e:
                             st.error("⚠️ Access Denied: Incorrect email or password.")
@@ -456,11 +450,9 @@ with st.sidebar:
     st.markdown("### 🗂️ Recent Library")
     if supabase:
         try:
-            # Fetch user's saved reports from newest to oldest
             res = supabase.table("saved_reports").select("*").eq("user_email", st.session_state.user_email).order("created_at", desc=True).limit(15).execute()
             if res.data:
                 for row in res.data:
-                    # Create a snippet for the button name
                     date_str = row['created_at'].split("T")[0]
                     btn_label = f"📄 {row['report_type']} ({date_str})"
                     
@@ -494,12 +486,13 @@ with st.sidebar:
         st.session_state.user_email = ""
         st.session_state.viewing_history = None
         st.session_state.results = {"market": None, "business": None, "competitor": None, "fundraising": None, "execution": None}
+        st.query_params.clear() # Clear URL logic on logout
         st.rerun()
 
 # ---------------------------------------------------------
 # 6. Header & Personal Greeting OR Archive Viewer
 # ---------------------------------------------------------
-# ARCHIVE VIEWER (Overrides main screen if a sidebar history item is clicked)
+# ARCHIVE VIEWER
 if st.session_state.viewing_history:
     rep = st.session_state.viewing_history
     st.markdown(f"<div class='main-title'>🗂️ Archive: {rep['report_type']}</div>", unsafe_allow_html=True)
@@ -510,7 +503,7 @@ if st.session_state.viewing_history:
         
     st.markdown("<div class='cinematic-divider'></div>", unsafe_allow_html=True)
     display_report_actions(rep['content'], rep['report_type'], f"hist_view_{rep['id']}")
-    st.stop()  # Stop rendering the rest of the tabs
+    st.stop()
 
 # STANDARD ACTIVE WORKSPACE
 st.markdown("<div class='main-title'>AI Startup Copilot</div>", unsafe_allow_html=True)
@@ -586,6 +579,13 @@ with tab1:
                     result = generate_ai_response(api_key, prompt)
                     if result:
                         st.session_state.results["market"] = result
+                        # AUTO SAVE FEATURE
+                        if supabase:
+                            supabase.table("saved_reports").insert({
+                                "user_email": st.session_state.user_email,
+                                "report_type": "Market Research",
+                                "content": result
+                            }).execute()
 
         if st.session_state.results["market"]:
             st.markdown("#### Deep Market Intelligence Completed:")
@@ -662,6 +662,13 @@ with tab2:
                 result = generate_ai_response(api_key, prompt)
                 if result:
                     st.session_state.results["business"] = result
+                    # AUTO SAVE FEATURE
+                    if supabase:
+                        supabase.table("saved_reports").insert({
+                            "user_email": st.session_state.user_email,
+                            "report_type": "Business Plan",
+                            "content": result
+                        }).execute()
                     
     if st.session_state.results["business"]:
         display_report_actions(st.session_state.results["business"], "Business Plan", "business")
@@ -712,6 +719,13 @@ with tab3:
                 result = generate_ai_response(api_key, prompt)
                 if result:
                     st.session_state.results["competitor"] = result
+                    # AUTO SAVE FEATURE
+                    if supabase:
+                        supabase.table("saved_reports").insert({
+                            "user_email": st.session_state.user_email,
+                            "report_type": "Competitor Intel",
+                            "content": result
+                        }).execute()
                     
     if st.session_state.results["competitor"]:
         display_report_actions(st.session_state.results["competitor"], "Competitor Intel", "competitor")
@@ -757,6 +771,13 @@ with tab4:
             result = generate_ai_response(api_key, prompt)
             if result:
                 st.session_state.results["fundraising"] = result
+                # AUTO SAVE FEATURE
+                if supabase:
+                    supabase.table("saved_reports").insert({
+                        "user_email": st.session_state.user_email,
+                        "report_type": "Fundraising Prep",
+                        "content": result
+                    }).execute()
                 
     if st.session_state.results["fundraising"]:
         display_report_actions(st.session_state.results["fundraising"], "Fundraising Prep", "fundraising")
@@ -802,41 +823,24 @@ with tab5:
                 result = generate_ai_response(api_key, prompt)
                 if result:
                     st.session_state.results["execution"] = result
+                    # AUTO SAVE FEATURE
+                    if supabase:
+                        supabase.table("saved_reports").insert({
+                            "user_email": st.session_state.user_email,
+                            "report_type": "Task Execution",
+                            "content": result
+                        }).execute()
                     
     if st.session_state.results["execution"]:
         display_report_actions(st.session_state.results["execution"], "Task Execution", "execution")
 
 # ---------------------------------------------------------
-# TAB 6: STRATEGIC ADVISOR & CHAT MEMORY
+# TAB 6: STRATEGIC ADVISOR (AUTO-SAVING CHAT MEMORY)
 # ---------------------------------------------------------
 with tab6:
     with st.container():
         st.markdown("### Strategic Advisory Protocol (Fact-Grounded Analysis)")
         st.write("Get unvarnished, deep-dive strategic guidance on pivots, hires, capital allocation, and high-stakes trade-offs.")
-        
-        # Adding a button to let users push the active chat into the Sidebar History
-        col_chat_1, col_chat_2 = st.columns([4, 1])
-        with col_chat_2:
-            if st.button("💾 Save Chat to Library", use_container_width=True):
-                if len(st.session_state.messages) > 1 and supabase:
-                    # Compile the chat into a text report
-                    chat_log = "## Strategic Chat Session\n\n"
-                    for m in st.session_state.messages[1:]: # Skip initial greeting
-                        role = "You" if m['role'] == 'user' else "AI Advisor"
-                        chat_log += f"**{role}:**\n{m['content']}\n\n---\n\n"
-                        
-                    try:
-                        supabase.table("saved_reports").insert({
-                            "user_email": st.session_state.user_email,
-                            "report_type": "Chat Session",
-                            "content": chat_log
-                        }).execute()
-                        st.success("✅ Chat saved to library!")
-                    except Exception as e:
-                        st.error("Failed to save chat.")
-                else:
-                    st.warning("Nothing to save yet.")
-        
         st.markdown("<div class='cinematic-divider'></div>", unsafe_allow_html=True)
         
         if "messages" not in st.session_state:
@@ -880,3 +884,15 @@ with tab6:
                         if reply:
                             st.chat_message("assistant").markdown(reply)
                             st.session_state.messages.append({"role": "assistant", "content": reply})
+                            
+                            # AUTO SAVE FEATURE FOR CHAT
+                            if supabase:
+                                chat_log = f"**User Question:**\n{user_input}\n\n---\n\n**AI Strategic Advisor:**\n{reply}"
+                                try:
+                                    supabase.table("saved_reports").insert({
+                                        "user_email": st.session_state.user_email,
+                                        "report_type": "Advisor Chat",
+                                        "content": chat_log
+                                    }).execute()
+                                except Exception:
+                                    pass # Fail silently so UX is not interrupted
