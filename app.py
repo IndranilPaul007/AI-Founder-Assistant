@@ -3,12 +3,14 @@ import pandas as pd
 import re
 import os
 import io
+import base64
+import json
 from dotenv import load_dotenv
 from openai import OpenAI
 from supabase import create_client, Client
 from pptx import Presentation
 
-# Load environment variables from local .env file
+# Load environment variables
 load_dotenv()
 
 # ---------------------------------------------------------
@@ -30,19 +32,23 @@ if "global_startup_name" not in st.session_state:
 if "global_idea" not in st.session_state:
     st.session_state.global_idea = ""
 
-# Persistent Storage across Tab Navigation
 if "results" not in st.session_state:
     st.session_state.results = {
-        "market": None,
-        "business": None,
-        "competitor": None,
-        "fundraising": None,
-        "execution": None
+        "market": None, "business": None, "competitor": None, 
+        "fundraising": None, "execution": None
     }
 
-# State for viewing history from the sidebar
+# View States
 if "viewing_history" not in st.session_state:
     st.session_state.viewing_history = None
+if "viewing_profile" not in st.session_state:
+    st.session_state.viewing_profile = False
+if "active_chat_mode" not in st.session_state:
+    st.session_state.active_chat_mode = False
+if "current_chat_id" not in st.session_state:
+    st.session_state.current_chat_id = None
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
 # Initialize Supabase Client
 @st.cache_resource
@@ -56,23 +62,27 @@ def init_supabase() -> Client:
 supabase = init_supabase()
 
 # ---------------------------------------------------------
-# 2. Cinematic CSS & UI Hiding (Removes Top-Right Icons)
+# 2. Cinematic CSS & Deep UI Hiding
 # ---------------------------------------------------------
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Space+Grotesk:wght@300;400;700&display=swap');
 
-    /* =========================================
-       NUKING THE STREAMLIT TOP RIGHT HEADER
-       ========================================= */
+    /* Nuke Streamlit Top Header & Bottom Manage Badges */
     [data-testid="stHeader"] { visibility: hidden !important; display: none !important; }
     [data-testid="stToolbar"] { visibility: hidden !important; display: none !important; }
     [data-testid="stDecoration"] { visibility: hidden !important; display: none !important; }
     .stDeployButton { display: none !important; }
     #MainMenu { visibility: hidden !important; }
     footer { visibility: hidden !important; }
+    
+    /* Remove the 'Manage App' watermark */
+    .viewerBadge_container { display: none !important; }
+    .viewerBadge_link { display: none !important; }
+    div[class^="viewerBadge"] { display: none !important; }
+    iframe[title="streamlitApp"] ~ div { display: none !important; }
 
-    /* Protect Streamlit Icons */
+    /* Global Fonts & Colors */
     html, body, p, h1, h2, h3, h4, h5, h6, input, textarea, select, button {
         font-family: 'Space Grotesk', sans-serif;
         color: #C0C0C0;
@@ -104,7 +114,6 @@ st.markdown("""
         50% { background-position: 100% 50%; }
         100% { background-position: 0% 50%; }
     }
-
     @keyframes scrollGrid {
         0% { background-position: 0px 0px; }
         100% { background-position: 40px 40px; }
@@ -117,11 +126,33 @@ st.markdown("""
         backdrop-filter: blur(15px);
         z-index: 20;
     }
-    
     section[data-testid="stSidebar"] .stMarkdown h1 {
         font-family: 'Orbitron', sans-serif;
         color: #38BDF8;
         text-shadow: 0 0 10px rgba(56, 189, 248, 0.8);
+    }
+
+    /* Transform Sidebar Radio Buttons into Vertical Tabs */
+    div[data-testid="stSidebar"] div[role="radiogroup"] > label {
+        padding: 10px 15px;
+        background: transparent;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        margin-bottom: 5px;
+        cursor: pointer;
+    }
+    div[data-testid="stSidebar"] div[role="radiogroup"] > label:hover {
+        background: rgba(56, 189, 248, 0.1);
+        color: white;
+    }
+    div[data-testid="stSidebar"] div[role="radiogroup"] > label[data-baseweb="radio"] div:first-child {
+        display: none !important; /* Hides the actual radio circle */
+    }
+    div[data-testid="stSidebar"] div[role="radiogroup"] > label[aria-checked="true"] {
+        background: rgba(56, 189, 248, 0.2);
+        border-left: 3px solid #38BDF8;
+        color: white;
+        font-weight: bold;
     }
 
     /* Cinematic Header styling */
@@ -134,15 +165,9 @@ st.markdown("""
         color: transparent;
         -webkit-background-clip: text;
         background-clip: text;
-        animation: shine 4s linear infinite;
         text-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
         margin-top: -20px;
     }
-
-    @keyframes shine {
-        to { background-position: 200% center; }
-    }
-
     .subtitle {
         font-size: 1.3rem;
         color: #38BDF8;
@@ -170,36 +195,7 @@ st.markdown("""
         box-shadow: 0 10px 40px 0 rgba(56, 189, 248, 0.2);
     }
 
-    /* High Tech Tabs */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-        background-color: transparent;
-    }
-
-    .stTabs [data-baseweb="tab"] {
-        height: 50px;
-        background-color: rgba(15, 23, 42, 0.8);
-        border: 1px solid rgba(56, 189, 248, 0.3);
-        border-radius: 10px;
-        color: #94A3B8;
-        font-family: 'Space Grotesk', sans-serif;
-        transition: 0.3s;
-    }
-
-    .stTabs [data-baseweb="tab"]:hover {
-        background-color: rgba(56, 189, 248, 0.2);
-        color: white;
-    }
-
-    .stTabs [data-baseweb="tab"][aria-selected="true"] {
-        background-color: rgba(56, 189, 248, 0.3);
-        border-color: #38BDF8;
-        color: white;
-        font-weight: 700;
-        box-shadow: 0 0 15px rgba(56, 189, 248, 0.5);
-    }
-
-    /* Inputs & Action Buttons */
+    /* Buttons & Inputs */
     .stButton > button {
         background: linear-gradient(45deg, #0F172A, #1E1B4B);
         color: #38BDF8;
@@ -212,36 +208,29 @@ st.markdown("""
         box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
         width: 100%;
     }
-
     .stButton > button:hover {
         background: linear-gradient(45deg, #38BDF8, #818CF8);
         box-shadow: 0 0 25px rgba(56, 189, 248, 0.6);
         color: #050509;
         border-color: transparent;
     }
-
     .stTextArea textarea, .stTextInput input, .stSelectbox select {
         background-color: rgba(15, 23, 42, 0.8) !important;
         border: 1px solid rgba(56, 189, 248, 0.4) !important;
         color: white !important;
         border-radius: 8px !important;
-        box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.6);
     }
-    
     .stTextArea textarea:focus, .stTextInput input:focus {
         border-color: #38BDF8 !important;
         box-shadow: 0 0 10px rgba(56, 189, 248, 0.4) !important;
     }
 
-    /* Decorative Divider Line */
     .cinematic-divider {
         height: 2px;
         background: linear-gradient(90deg, transparent, #38BDF8, #818CF8, transparent);
         margin: 20px 0;
         box-shadow: 0 0 10px #38BDF8;
     }
-    
-    /* Sidebar History Button Styling */
     .history-btn > button {
         background: transparent !important;
         border: 1px solid rgba(56, 189, 248, 0.2) !important;
@@ -251,13 +240,22 @@ st.markdown("""
         padding-left: 15px !important;
         font-size: 0.85rem !important;
         text-transform: none !important;
-        letter-spacing: 0px !important;
         box-shadow: none !important;
     }
     .history-btn > button:hover {
         background: rgba(56, 189, 248, 0.1) !important;
         color: #38BDF8 !important;
         border-color: #38BDF8 !important;
+    }
+    
+    /* Profile Pic Circle styling */
+    .profile-pic {
+        border-radius: 50%;
+        width: 150px;
+        height: 150px;
+        object-fit: cover;
+        border: 3px solid #38BDF8;
+        box-shadow: 0 0 20px rgba(56, 189, 248, 0.5);
     }
     </style>
 """, unsafe_allow_html=True)
@@ -266,23 +264,14 @@ st.markdown("""
 # 3. Helper Functions, Nemotron SDK & PPT Generator
 # ---------------------------------------------------------
 def is_valid_input(text):
-    if not text or len(text.strip()) < 2:
-        return False
-    clean_text = text.strip().lower()
-    letters_only = re.sub(r'[^a-z]', '', clean_text)
-    if len(letters_only) < 3:
-        return True
-    vowels = len(re.findall(r'[aeiouy]', letters_only))
-    if len(letters_only) > 5 and vowels == 0:
-        return False
-    if re.search(r'[^aeiouy]{5,}', letters_only):
-        return False
-    if re.search(r'(.)\1{3,}', letters_only):
-        return False
-    smashes = ['asdf', 'qwer', 'zxcv', 'hjkl']
-    for smash in smashes:
-        if smash in letters_only:
-            return False
+    if not text or len(text.strip()) < 2: return False
+    clean = re.sub(r'[^a-z]', '', text.strip().lower())
+    if len(clean) < 3: return True
+    if len(clean) > 5 and len(re.findall(r'[aeiouy]', clean)) == 0: return False
+    if re.search(r'[^aeiouy]{5,}', clean): return False
+    if re.search(r'(.)\1{3,}', clean): return False
+    for s in ['asdf', 'qwer', 'zxcv', 'hjkl']:
+        if s in clean: return False
     return True
 
 def generate_ai_response(api_key, prompt, system_prompt=""):
@@ -290,35 +279,21 @@ def generate_ai_response(api_key, prompt, system_prompt=""):
         st.error("⚠️ CRITICAL: API Key Missing. Enter it in the sidebar or .env file.")
         return None
     try:
-        client = OpenAI(
-            api_key=api_key,
-            base_url="https://integrate.api.nvidia.com/v1"
-        )
-        
-        messages = []
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        else:
-            messages.append({"role": "system", "content": "You are a top-tier Silicon Valley venture partner and Y-Combinator strategist. Provide exhaustive, highly detailed, strictly factual data-driven startup analysis using clean markdown text without code blocks or backticks."})
-            
+        client = OpenAI(api_key=api_key, base_url="https://integrate.api.nvidia.com/v1")
+        messages = [{"role": "system", "content": system_prompt}] if system_prompt else []
         messages.append({"role": "user", "content": prompt})
         
         response = client.chat.completions.create(
             model="nvidia/nemotron-3-ultra-550b-a55b", 
-            messages=messages,
-            temperature=0.7,
-            max_tokens=2048
+            messages=messages, temperature=0.7, max_tokens=2048
         )
         return response.choices[0].message.content
     except Exception as e:
-        st.error(f"Connection Error: {str(e)}")
         return None
 
 def create_ppt(report_text, report_title):
     prs = Presentation()
-    
-    title_slide_layout = prs.slide_layouts[0]
-    slide = prs.slides.add_slide(title_slide_layout)
+    slide = prs.slides.add_slide(prs.slide_layouts[0])
     slide.shapes.title.text = report_title
     slide.placeholders[1].text = "Generated by AI Startup Copilot"
     
@@ -326,15 +301,10 @@ def create_ppt(report_text, report_title):
     for section in sections[1:]:
         lines = section.split('\n')
         slide_header = lines[0].strip()
-        slide_body = '\n'.join(lines[1:]).strip()
-        
-        slide_body = re.sub(r'[*_`#]', '', slide_body)
-        
-        if len(slide_body) > 800:
-            slide_body = slide_body[:800] + "...\n\n[Details truncated for presentation]"
+        slide_body = re.sub(r'[*_`#]', '', '\n'.join(lines[1:]).strip())
+        if len(slide_body) > 800: slide_body = slide_body[:800] + "...\n\n[Details truncated]"
             
-        bullet_slide_layout = prs.slide_layouts[1]
-        slide = prs.slides.add_slide(bullet_slide_layout)
+        slide = prs.slides.add_slide(prs.slide_layouts[1])
         slide.shapes.title.text = slide_header
         slide.placeholders[1].text_frame.text = slide_body
         
@@ -343,38 +313,29 @@ def create_ppt(report_text, report_title):
     ppt_stream.seek(0)
     return ppt_stream
 
-# We removed the "Save" button here because saving is now fully automatic!
 def display_report_actions(report_text, report_title, state_key):
     st.markdown(report_text)
     st.markdown("<br>", unsafe_allow_html=True)
-    
-    col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
+    col1, col2, col3 = st.columns([1, 1, 2])
     with col1:
-        st.download_button(
-            label="📄 Download (.md)", 
-            data=report_text, 
-            file_name=f"{report_title.replace(' ', '_')}.md", 
-            mime="text/markdown", 
-            key=f"dl_md_{state_key}"
-        )
+        st.download_button("📄 Download (.md)", data=report_text, file_name=f"{report_title.replace(' ','_')}.md", mime="text/markdown", key=f"dl_md_{state_key}")
     with col2:
         try:
             ppt_data = create_ppt(report_text, report_title)
-            st.download_button(
-                label="📊 Download as PPT",
-                data=ppt_data,
-                file_name=f"{report_title.replace(' ', '_')}.pptx",
-                mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                key=f"dl_ppt_{state_key}"
-            )
-        except Exception as e:
-            st.error(f"PPT Compilation Error: {e}")
+            st.download_button("📊 Download as PPT", data=ppt_data, file_name=f"{report_title.replace(' ','_')}.pptx", mime="application/vnd.openxmlformats-officedocument.presentationml.presentation", key=f"dl_ppt_{state_key}")
+        except: pass
+
+def auto_save_report(report_type, result):
+    if supabase:
+        supabase.table("saved_reports").insert({
+            "user_email": st.session_state.user_email,
+            "report_type": report_type,
+            "content": result
+        }).execute()
 
 # ---------------------------------------------------------
-# 4. SUPABASE Authentication Gateway & URL Refresh Fix
+# 4. Authentication Gateway & URL Refresh Fix
 # ---------------------------------------------------------
-
-# FIX FOR BROWSER REFRESH LOGOUTS: Check URL Query Parameters
 if "session_user" in st.query_params:
     st.session_state.logged_in = True
     st.session_state.user_email = st.query_params["session_user"]
@@ -387,117 +348,195 @@ if not st.session_state.logged_in:
         st.markdown("<div class='subtitle' style='text-align: center; border: none;'>Founder Portal</div>", unsafe_allow_html=True)
         
         if supabase is None:
-            st.error("⚠️ Supabase Backend Disconnected. Please check your SUPABASE_URL and SUPABASE_KEY in Secrets.")
+            st.error("⚠️ Supabase Backend Disconnected. Check Secrets.")
             st.stop()
             
         with st.container():
-            st.markdown("<h3 style='text-align: center; color: #38BDF8; font-family: Orbitron, sans-serif; margin-bottom: 20px;'>System Authentication</h3>", unsafe_allow_html=True)
-            
             tab_login, tab_signup = st.tabs(["Login", "Sign Up"])
-            
             with tab_login:
-                login_email = st.text_input("Corporate Email / Founder ID", placeholder="founder@startup.com", key="l_email")
-                login_pwd = st.text_input("Password", type="password", placeholder="••••••••", key="l_pwd")
-                
-                st.markdown("<br>", unsafe_allow_html=True)
-                if st.button("SECURE LOGIN", type="primary", use_container_width=True, key="btn_login"):
+                login_email = st.text_input("Corporate Email", key="l_email")
+                login_pwd = st.text_input("Password", type="password", key="l_pwd")
+                if st.button("SECURE LOGIN", type="primary", use_container_width=True):
                     if login_email and login_pwd:
                         try:
-                            response = supabase.auth.sign_in_with_password({"email": login_email, "password": login_pwd})
+                            supabase.auth.sign_in_with_password({"email": login_email, "password": login_pwd})
                             st.session_state.logged_in = True
                             st.session_state.user_email = login_email
-                            
-                            # SILENTLY ADD SESSION TO URL SO IT SURVIVES A PAGE REFRESH
                             st.query_params["session_user"] = login_email
                             
+                            # Check Profile Onboarding
+                            res = supabase.table("user_profiles").select("has_onboarded").eq("user_email", login_email).execute()
+                            if not res.data:
+                                supabase.table("user_profiles").insert({"user_email": login_email}).execute()
+                                st.session_state.viewing_profile = True
+                            elif not res.data[0].get('has_onboarded'):
+                                st.session_state.viewing_profile = True
+                                
                             st.rerun()
-                        except Exception as e:
-                            st.error("⚠️ Access Denied: Incorrect email or password.")
-                    else:
-                        st.error("⚠️ Credentials Required.")
+                        except: st.error("⚠️ Incorrect email or password.")
             
             with tab_signup:
-                signup_email = st.text_input("New Email Address", placeholder="founder@startup.com", key="s_email")
-                signup_pwd = st.text_input("Create Password (Min 6 chars)", type="password", placeholder="••••••••", key="s_pwd")
-                
-                st.markdown("<br>", unsafe_allow_html=True)
-                if st.button("CREATE ACCOUNT", type="primary", use_container_width=True, key="btn_signup"):
+                signup_email = st.text_input("New Email", key="s_email")
+                signup_pwd = st.text_input("Create Password (Min 6 chars)", type="password", key="s_pwd")
+                if st.button("CREATE ACCOUNT", type="primary", use_container_width=True):
                     if signup_email and len(signup_pwd) >= 6:
                         try:
-                            response = supabase.auth.sign_up({"email": signup_email, "password": signup_pwd})
-                            st.success("✅ Account created successfully! You can now switch to the Login tab.")
-                        except Exception as e:
-                            st.error(f"⚠️ Error creating account: {e}")
-                    elif len(signup_pwd) < 6:
-                        st.error("⚠️ Password must be at least 6 characters long.")
-                    else:
-                        st.error("⚠️ Email and Password are required.")
-            
-            st.markdown("<p style='text-align: center; font-size: 0.9rem; color: #94A3B8; margin-top: 20px;'>🔒 Secured by Supabase Authentication</p>", unsafe_allow_html=True)
+                            supabase.auth.sign_up({"email": signup_email, "password": signup_pwd})
+                            st.success("✅ Account created! Switch to Login.")
+                        except Exception as e: st.error(f"⚠️ Error: {e}")
+                    else: st.error("⚠️ Password must be 6+ chars.")
     st.stop()
 
 # ---------------------------------------------------------
-# 5. Sidebar Configuration & CHAT MEMORY
+# Fetch Profile Data & Build Global AI Memory Prompt
+# ---------------------------------------------------------
+profile_data = supabase.table("user_profiles").select("*").eq("user_email", st.session_state.user_email).execute().data
+user_profile = profile_data[0] if profile_data else {}
+user_identity = user_profile.get("full_name") or st.session_state.user_email.split('@')[0].capitalize()
+ai_memory_context = user_profile.get("ai_memory", "")
+
+global_system_prompt = f"""
+You are an elite Silicon Valley venture partner advising {user_identity}.
+[CRITICAL USER CONTEXT & MEMORY]:
+{ai_memory_context}
+
+Provide exhaustive, factual data-driven startup analysis tailored specifically to the User Context above.
+USE PLAIN TEXT ONLY. DO NOT use markdown code blocks or backticks (`). Format cleanly with bullets.
+"""
+
+# ---------------------------------------------------------
+# 5. Sidebar Configuration & Navigation
 # ---------------------------------------------------------
 with st.sidebar:
-    st.markdown("<h1>Founder Assistant</h1>", unsafe_allow_html=True)
+    st.markdown("<h1>AI Copilot</h1>", unsafe_allow_html=True)
     
-    user_identity = st.session_state.user_email.split('@')[0].capitalize()
-    st.caption(f"Authenticated as: **{user_identity}**")
+    # NEW CHAT BUTTON
+    if st.button("➕ New Chat Session", type="primary", use_container_width=True):
+        st.session_state.messages = [{"role": "assistant", "content": f"Welcome back, {user_identity}! Let's build something."}]
+        st.session_state.current_chat_id = None
+        st.session_state.active_chat_mode = True
+        st.session_state.viewing_profile = False
+        st.session_state.viewing_history = None
+        st.rerun()
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # WORKSPACE TOOLS NAVIGATION
+    st.markdown("### 🛠️ Workspace Tools")
+    
+    def on_tool_change():
+        st.session_state.viewing_history = None
+        st.session_state.viewing_profile = False
+        st.session_state.active_chat_mode = False
+
+    selected_tool = st.radio(
+        "Tools",
+        ["Market Research", "Business Planning", "Competitor Intel", "Fundraising Prep", "Task Execution", "Strategic Advisor"],
+        label_visibility="collapsed",
+        on_change=on_tool_change
+    )
+    
     st.markdown("<div class='cinematic-divider'></div>", unsafe_allow_html=True)
     
-    # ------------------ RECENT LIBRARY (Like Gemini Left Bar) ------------------
+    # RECENT HISTORY
     st.markdown("### 🗂️ Recent Library")
     if supabase:
-        try:
-            res = supabase.table("saved_reports").select("*").eq("user_email", st.session_state.user_email).order("created_at", desc=True).limit(15).execute()
-            if res.data:
-                for row in res.data:
-                    date_str = row['created_at'].split("T")[0]
-                    btn_label = f"📄 {row['report_type']} ({date_str})"
-                    
-                    st.markdown('<div class="history-btn">', unsafe_allow_html=True)
-                    if st.button(btn_label, key=f"hist_{row['id']}", use_container_width=True):
-                        st.session_state.viewing_history = row
-                    st.markdown('</div>', unsafe_allow_html=True)
-            else:
-                st.caption("No saved projects yet.")
-        except Exception as e:
-            st.caption("Could not load history.")
-    
+        res = supabase.table("saved_reports").select("*").eq("user_email", st.session_state.user_email).order("created_at", desc=True).limit(10).execute()
+        for row in res.data:
+            date_str = row['created_at'].split("T")[0]
+            icon = "💬" if row['report_type'] == "Advisor Chat" else "📄"
+            st.markdown('<div class="history-btn">', unsafe_allow_html=True)
+            if st.button(f"{icon} {row['report_type']} ({date_str})", key=f"hist_{row['id']}", use_container_width=True):
+                if row['report_type'] == "Advisor Chat":
+                    st.session_state.messages = json.loads(row['content'])
+                    st.session_state.current_chat_id = row['id']
+                    st.session_state.active_chat_mode = True
+                    st.session_state.viewing_history = None
+                    st.session_state.viewing_profile = False
+                else:
+                    st.session_state.viewing_history = row
+                    st.session_state.active_chat_mode = False
+                    st.session_state.viewing_profile = False
+                st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+
     st.markdown("<div class='cinematic-divider'></div>", unsafe_allow_html=True)
     
-    env_key = os.getenv("NVIDIA_API_KEY", "")
-    if env_key:
-        api_key = env_key
-        st.success("✅ Secure AI Core Connected")
-    else:
-        api_key = st.text_input("API Key", type="password", help="Enter your NVIDIA API Key")
+    # PROFILE ICON & SETTINGS
+    col_p1, col_p2 = st.columns([1, 3])
+    with col_p1:
+        if user_profile.get("profile_pic"):
+            st.markdown(f'<img src="{user_profile["profile_pic"]}" style="border-radius: 50%; width: 40px; height: 40px; object-fit: cover; border: 2px solid #38BDF8;">', unsafe_allow_html=True)
+        else:
+            st.markdown("👤")
+    with col_p2:
+        st.caption(f"**{user_identity}**")
         
-    st.caption("Powered by: **Nemotron-3-Ultra-550B**")
-    
-    st.markdown("<div class='cinematic-divider'></div>", unsafe_allow_html=True)
-    if st.button("DISCONNECT (Log Out)"):
-        try:
-            supabase.auth.sign_out()
-        except:
-            pass
-        st.session_state.logged_in = False
-        st.session_state.user_email = ""
+    if st.button("⚙️ Profile & Settings", use_container_width=True):
+        st.session_state.viewing_profile = True
+        st.session_state.active_chat_mode = False
         st.session_state.viewing_history = None
-        st.session_state.results = {"market": None, "business": None, "competitor": None, "fundraising": None, "execution": None}
-        st.query_params.clear() # Clear URL logic on logout
+        st.rerun()
+        
+    env_key = os.getenv("NVIDIA_API_KEY", "")
+    api_key = env_key if env_key else st.text_input("API Key", type="password")
+        
+    if st.button("DISCONNECT (Log Out)"):
+        supabase.auth.sign_out()
+        st.session_state.clear()
+        st.query_params.clear()
         st.rerun()
 
 # ---------------------------------------------------------
-# 6. Header & Personal Greeting OR Archive Viewer
+# 6. View Routing (Overrides main screen based on state)
 # ---------------------------------------------------------
-# ARCHIVE VIEWER
+
+# OVERRIDE 1: PROFILE EDITOR
+if st.session_state.viewing_profile:
+    st.markdown("<div class='main-title'>👤 Founder Profile</div>", unsafe_allow_html=True)
+    st.markdown("<div class='subtitle'>Configure your identity and AI memory</div>", unsafe_allow_html=True)
+    
+    if st.button("⬅️ Return to Workspace", type="primary"):
+        st.session_state.viewing_profile = False
+        st.rerun()
+        
+    colA, colB = st.columns([1, 2])
+    with colA:
+        if user_profile.get("profile_pic"):
+            st.markdown(f'<img src="{user_profile["profile_pic"]}" class="profile-pic">', unsafe_allow_html=True)
+        img_file = st.file_uploader("Upload Profile Picture", type=["png", "jpg", "jpeg"])
+    
+    with colB:
+        new_name = st.text_input("Full Name", value=user_profile.get("full_name", ""))
+        new_phone = st.text_input("Phone Number", value=user_profile.get("phone_number", ""))
+        
+        st.markdown("#### 🧠 AI Memory Context")
+        st.caption("The AI extracts facts from your chats and uses this data across ALL tools to personalize advice.")
+        new_memory = st.text_area("What should the AI remember about you?", value=user_profile.get("ai_memory", ""), height=150)
+        
+        if st.button("💾 Save Profile Data", type="primary"):
+            update_data = {
+                "full_name": new_name,
+                "phone_number": new_phone,
+                "ai_memory": new_memory,
+                "has_onboarded": True
+            }
+            if img_file:
+                b64 = base64.b64encode(img_file.read()).decode()
+                update_data["profile_pic"] = f"data:image/png;base64,{b64}"
+                
+            supabase.table("user_profiles").update(update_data).eq("user_email", st.session_state.user_email).execute()
+            st.success("✅ Profile Updated!")
+            st.session_state.viewing_profile = False
+            st.rerun()
+    st.stop()
+
+# OVERRIDE 2: ARCHIVE VIEWER
 if st.session_state.viewing_history:
     rep = st.session_state.viewing_history
     st.markdown(f"<div class='main-title'>🗂️ Archive: {rep['report_type']}</div>", unsafe_allow_html=True)
     
-    if st.button("⬅️ Back to Active Workspace", type="primary"):
+    if st.button("⬅️ Return to Workspace", type="primary"):
         st.session_state.viewing_history = None
         st.rerun()
         
@@ -505,18 +544,60 @@ if st.session_state.viewing_history:
     display_report_actions(rep['content'], rep['report_type'], f"hist_view_{rep['id']}")
     st.stop()
 
-# STANDARD ACTIVE WORKSPACE
+# OVERRIDE 3: FULL SCREEN ACTIVE CHAT (Continued from Sidebar)
+if st.session_state.active_chat_mode:
+    st.markdown(f"<div class='main-title'>💬 Strategic Advisor</div>", unsafe_allow_html=True)
+    if st.button("⬅️ Close Chat & Return to Tools", type="primary"):
+        st.session_state.active_chat_mode = False
+        st.rerun()
+        
+    st.markdown("<div class='cinematic-divider'></div>", unsafe_allow_html=True)
+    
+    chat_container = st.container(height=500)
+    with chat_container:
+        for msg in st.session_state.messages:
+            with st.chat_message(msg["role"]): st.markdown(msg["content"])
+
+    if user_input := st.chat_input("Ask a strategic question..."):
+        with chat_container:
+            st.chat_message("user").markdown(user_input)
+        st.session_state.messages.append({"role": "user", "content": user_input})
+        
+        with chat_container:
+            with st.spinner("Analyzing against verified business facts..."):
+                reply = generate_ai_response(api_key, user_input, system_prompt=global_system_prompt)
+                
+                if reply:
+                    st.chat_message("assistant").markdown(reply)
+                    st.session_state.messages.append({"role": "assistant", "content": reply})
+                    
+                    if supabase:
+                        content_json = json.dumps(st.session_state.messages)
+                        if st.session_state.current_chat_id:
+                            supabase.table("saved_reports").update({"content": content_json}).eq("id", st.session_state.current_chat_id).execute()
+                        else:
+                            res = supabase.table("saved_reports").insert({
+                                "user_email": st.session_state.user_email,
+                                "report_type": "Advisor Chat",
+                                "content": content_json
+                            }).execute()
+                            st.session_state.current_chat_id = res.data[0]['id']
+                            
+                        mem_prompt = f"Extract a 1-sentence factual detail about the user's startup or preferences from this message: '{user_input}'. If none, output 'NONE'."
+                        new_mem = generate_ai_response(api_key, user_input, system_prompt=mem_prompt)
+                        if new_mem and "NONE" not in new_mem and len(new_mem) > 5:
+                            updated_mem = ai_memory_context + "\n- " + new_mem.strip()
+                            supabase.table("user_profiles").update({"ai_memory": updated_mem}).eq("user_email", st.session_state.user_email).execute()
+    st.stop()
+
+
+# =========================================================
+# STANDARD ACTIVE WORKSPACE (Based on Sidebar Selection)
+# =========================================================
 st.markdown("<div class='main-title'>AI Startup Copilot</div>", unsafe_allow_html=True)
-st.markdown(f"<div class='subtitle'>Hello, {user_identity}. How can I help you today?</div>", unsafe_allow_html=True)
+st.markdown(f"<div class='subtitle'>{selected_tool}</div>", unsafe_allow_html=True)
 
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "Market Research", "Business Planning", "Competitor Intel", "Fundraising Prep", "Task Execution", "Strategic Advisor"
-])
-
-# ---------------------------------------------------------
-# TAB 1: MARKET RESEARCH
-# ---------------------------------------------------------
-with tab1:
+if selected_tool == "Market Research":
     with st.container():
         st.markdown("### Market Intelligence & Deep Validation")
         st.write("Exhaustive analysis: Market Opportunity Score, ICP, TAM/SAM/SOM in ₹ (INR), GTM Channels, Macro Trends, Scenario Matrix, & 48-Hour Experiment.")
@@ -543,58 +624,29 @@ with tab1:
                     - Region: {geography}
 
                     CRITICAL MANDATORY INSTRUCTIONS:
-                    - ALL FINANCIAL FIGURES, MARKET SIZES, COST ESTIMATES, AND PRICING MUST BE PRESENTED STRICTLY IN INDIAN RUPEES (₹ / INR). Use standard notation (e.g., ₹12 Lakhs, ₹1.5 Crore).
-                    - USE PLAIN TEXT ONLY. DO NOT use markdown code blocks, backticks (`), or LaTeX math blocks. Keep text clean, readable, and beautifully formatted in bullet points and tables.
-                    - Provide deep, highly specific, numerical, and strictly factual insights. Avoid fluff.
+                    - ALL FINANCIAL FIGURES MUST BE PRESENTED STRICTLY IN INDIAN RUPEES (₹ / INR). 
+                    - USE PLAIN TEXT ONLY. DO NOT use markdown code blocks, backticks (`), or LaTeX.
 
-                    Structure your response into 8 comprehensive sections:
+                    Structure your response into 8 sections:
                     ## 1. Executive Summary & Market Opportunity Score
-                    - Opportunity Score (0-100) with clear justification.
-                    - Core Thesis: Why is now the exact right time to build this?
-
                     ## 2. Granular Ideal Customer Profile (ICP) & Buyer Persona
-                    - Target Role, Decision Maker, and Team Headcount.
-                    - Primary Operational Pain Points.
-                    - Buying Triggers & Budget Authority in ₹.
-
                     ## 3. Comprehensive Market Sizing (TAM / SAM / SOM in ₹)
-                    Provide a detailed Markdown Table with columns: [Segment, Estimated Value in ₹, Sizing Logic].
-
                     ## 4. Scenario & Sensitivity Analysis Matrix (in ₹)
-                    Provide a Markdown Table for Bear, Base, and Bull cases over 24 months.
-
                     ## 5. Macro Trends & Regulatory Vectors
-                    - Industry Tailwinds & Regulatory/Compliance drivers (e.g., DPDP Act, BIS, RBI frameworks).
-
                     ## 6. Go-To-Market (GTM) Channels & Unit Economics (in ₹)
-                    - Top 3 specific channels to acquire the first 100 users/customers.
-                    - Estimated CAC in ₹ and payback period.
-
                     ## 7. Strategic Pros & Hidden Risks
-                    - 3 major advantages and 3 brutal, unvarnished systemic risks.
-
                     ## 8. 48-Hour Tactical Validation Experiment
-                    - Exact landing page headline, outbound cold email script, and minimum viable signals.
                     """
-                    result = generate_ai_response(api_key, prompt)
+                    result = generate_ai_response(api_key, prompt, system_prompt=global_system_prompt)
                     if result:
                         st.session_state.results["market"] = result
-                        # AUTO SAVE FEATURE
-                        if supabase:
-                            supabase.table("saved_reports").insert({
-                                "user_email": st.session_state.user_email,
-                                "report_type": "Market Research",
-                                "content": result
-                            }).execute()
+                        auto_save_report("Market Research", result)
 
         if st.session_state.results["market"]:
             st.markdown("#### Deep Market Intelligence Completed:")
             display_report_actions(st.session_state.results["market"], "Market Research", "market")
 
-# ---------------------------------------------------------
-# TAB 2: BUSINESS PLANNING
-# ---------------------------------------------------------
-with tab2:
+elif selected_tool == "Business Planning":
     with st.container():
         st.markdown("### Interactive Lean Canvas & Unit Economics (All Financials in ₹)")
         st.write("Generate a structured, operational one-page business model with granular unit economics & a realistic $1B+ unicorn scaling roadmap.")
@@ -641,49 +693,30 @@ with tab2:
                 - Revenue Model: {revenue_model}
 
                 CRITICAL MANDATORY INSTRUCTIONS:
-                - ALL FINANCIAL FIGURES, COSTS, PRICING TIERS, CAC, LTV, AND REVENUE TARGETS MUST BE PRESENTED STRICTLY IN INDIAN RUPEES (₹ / INR). Use standard notation (e.g., ₹15 Lakhs, ₹2.5 Crores).
-                - USE PLAIN TEXT ONLY. DO NOT use markdown code blocks, backticks (`), or LaTeX formatting.
+                - ALL FINANCIAL FIGURES MUST BE PRESENTED STRICTLY IN INDIAN RUPEES (₹ / INR). 
+                - USE PLAIN TEXT ONLY. DO NOT use markdown code blocks, backticks (`), or LaTeX.
 
                 Output the analysis in the following sections:
                 ## 1. Comprehensive Lean Business Canvas
-                Provide a detailed Markdown Table covering Problem, Solution, UVP, Unfair Advantage, Customer Segments, Key Metrics, Channels, Cost Structure in ₹, and Revenue Streams in ₹.
-
                 ## 2. Granular Unit Economics & Financial Benchmarks (in ₹)
-                - Target LTV, CAC, LTV:CAC Ratio, Gross Margin %, and Payback Period.
-                - Detailed Fixed vs Variable Cost Breakdown in ₹ (salaries, compute, infrastructure, compliance).
-                - 3 Clear Pricing Tiers in ₹ with exact feature limits.
-
                 ## 3. Pragmatic Step-by-Step Scaling Roadmap
-                - Phase 1: Zero to One (Product-Market Fit & Initial Validation)
-                - Phase 2: Repeatable Growth Engine 
-                - Phase 3: Scale-Up & Market Expansion
-                - Phase 4: Market Dominance & Long-Term Sustainability
                 """
-                result = generate_ai_response(api_key, prompt)
+                result = generate_ai_response(api_key, prompt, system_prompt=global_system_prompt)
                 if result:
                     st.session_state.results["business"] = result
-                    # AUTO SAVE FEATURE
-                    if supabase:
-                        supabase.table("saved_reports").insert({
-                            "user_email": st.session_state.user_email,
-                            "report_type": "Business Plan",
-                            "content": result
-                        }).execute()
+                    auto_save_report("Business Plan", result)
                     
     if st.session_state.results["business"]:
         display_report_actions(st.session_state.results["business"], "Business Plan", "business")
 
-# ---------------------------------------------------------
-# TAB 3: COMPETITOR ANALYSIS
-# ---------------------------------------------------------
-with tab3:
+elif selected_tool == "Competitor Intel":
     with st.container():
         st.markdown("### Competitive Intelligence Matrix & Moat Analysis")
         st.write("Exhaustive competitive benchmarking. If target competitors are left blank, AI will auto-discover at least 20 main competitors.")
         
         col1, col2 = st.columns(2)
         with col1:
-            my_startup = st.text_input("Your Product Name:", value=st.session_state.global_startup_name, placeholder="e.g., FlowAI")
+            my_startup = st.text_input("Your Product Name:", value=st.session_state.global_startup_name, key="c_startup")
             competitors = st.text_input("Target Competitors (Optional):", placeholder="Leave blank for auto-discovery")
         with col2:
             differentiator = st.text_area("Your Defensive Moat / Technology:", placeholder="Why can't they just copy you?")
@@ -702,38 +735,25 @@ with tab3:
                 - Defensive Advantage: {differentiator}
 
                 CRITICAL MANDATORY INSTRUCTIONS:
-                - YOU MUST IDENTIFY, NAME, AND ANALYZE AT LEAST 20 MAIN COMPETITORS (Direct, Indirect, Legacy Incumbents, and Emerging Startups).
+                - YOU MUST IDENTIFY, NAME, AND ANALYZE AT LEAST 20 MAIN COMPETITORS.
                 - ALL FINANCIALS AND PRICING MUST BE IN INDIAN RUPEES (₹ / INR).
                 - USE PLAIN TEXT ONLY. DO NOT use markdown code blocks, backticks (`), or LaTeX.
 
                 Output Structure:
                 ## 1. Master Competitor Directory (At least 20 Competitors)
-                - Numbered list of 20 competitors with Name/Origin, Business Model & Pricing in ₹, Critical Weaknesses, and Tactical Exploit Strategy.
-
                 ## 2. Summary Matrix Table
-                - Markdown table comparing your startup against top competitors.
-
                 ## 3. Strategic Blind Spots & Incumbent Vulnerabilities
                 ## 4. Defensible Positioning & Moat Lock-in Plan
                 """
-                result = generate_ai_response(api_key, prompt)
+                result = generate_ai_response(api_key, prompt, system_prompt=global_system_prompt)
                 if result:
                     st.session_state.results["competitor"] = result
-                    # AUTO SAVE FEATURE
-                    if supabase:
-                        supabase.table("saved_reports").insert({
-                            "user_email": st.session_state.user_email,
-                            "report_type": "Competitor Intel",
-                            "content": result
-                        }).execute()
+                    auto_save_report("Competitor Intel", result)
                     
     if st.session_state.results["competitor"]:
         display_report_actions(st.session_state.results["competitor"], "Competitor Intel", "competitor")
 
-# ---------------------------------------------------------
-# TAB 4: FUNDRAISING PREPARATION
-# ---------------------------------------------------------
-with tab4:
+elif selected_tool == "Fundraising Prep":
     with st.container():
         st.markdown("### Advanced Investor Protocol & Pitch Prep (Financials in ₹)")
         st.write("Institutional-grade fundraising prep: 30-sec hook, valuation caps in ₹, Cap Table dilution models, term sheet tactics, data room checklist, & VC Q&A.")
@@ -768,24 +788,15 @@ with tab4:
             ## 6. Investor Due Diligence Data Room Checklist
             ## 7. Top 7 Hardest VC Questions & Battle-Tested Winning Answers
             """
-            result = generate_ai_response(api_key, prompt)
+            result = generate_ai_response(api_key, prompt, system_prompt=global_system_prompt)
             if result:
                 st.session_state.results["fundraising"] = result
-                # AUTO SAVE FEATURE
-                if supabase:
-                    supabase.table("saved_reports").insert({
-                        "user_email": st.session_state.user_email,
-                        "report_type": "Fundraising Prep",
-                        "content": result
-                    }).execute()
+                auto_save_report("Fundraising Prep", result)
                 
     if st.session_state.results["fundraising"]:
         display_report_actions(st.session_state.results["fundraising"], "Fundraising Prep", "fundraising")
 
-# ---------------------------------------------------------
-# TAB 5: TASK EXECUTION
-# ---------------------------------------------------------
-with tab5:
+elif selected_tool == "Task Execution":
     with st.container():
         st.markdown("### Hyper-Realistic 30-Day Execution Roadmap")
         st.write("Convert high-level strategy into metric-driven, day-by-day operational sprints with exact tool stacks and conversion formulas.")
@@ -814,85 +825,25 @@ with tab5:
 
                 Structure output into:
                 ## 1. Key Success Metrics & Operational Funnel
-                - Provide practical, step-by-step numbers needed to hit this goal (e.g., for software: outbound messages -> calls -> closes; for hardware/robotics: prototypes built -> beta testing -> LOIs signed).
-
                 ## 2. Recommended Tech Stack & Tooling Suite
                 ## 3. Granular Weekly Operational Sprints (Week 1, 2, 3, 4)
                 ## 4. Execution Bottlenecks & Operational Contingency Triggers
                 """
-                result = generate_ai_response(api_key, prompt)
+                result = generate_ai_response(api_key, prompt, system_prompt=global_system_prompt)
                 if result:
                     st.session_state.results["execution"] = result
-                    # AUTO SAVE FEATURE
-                    if supabase:
-                        supabase.table("saved_reports").insert({
-                            "user_email": st.session_state.user_email,
-                            "report_type": "Task Execution",
-                            "content": result
-                        }).execute()
+                    auto_save_report("Task Execution", result)
                     
     if st.session_state.results["execution"]:
         display_report_actions(st.session_state.results["execution"], "Task Execution", "execution")
 
-# ---------------------------------------------------------
-# TAB 6: STRATEGIC ADVISOR (AUTO-SAVING CHAT MEMORY)
-# ---------------------------------------------------------
-with tab6:
+elif selected_tool == "Strategic Advisor":
     with st.container():
-        st.markdown("### Strategic Advisory Protocol (Fact-Grounded Analysis)")
-        st.write("Get unvarnished, deep-dive strategic guidance on pivots, hires, capital allocation, and high-stakes trade-offs.")
-        st.markdown("<div class='cinematic-divider'></div>", unsafe_allow_html=True)
-        
-        if "messages" not in st.session_state:
-            st.session_state.messages = [
-                {"role": "assistant", "content": f"Welcome! I am your AI Strategic Co-Founder. What critical decision or trade-off are you evaluating today?"}
-            ]
-
-        chat_container = st.container(height=450)
-        with chat_container:
-            for msg in st.session_state.messages:
-                with st.chat_message(msg["role"]):
-                    st.markdown(msg["content"])
-
-        if user_input := st.chat_input("Input strategic trade-off, e.g., 'Should we pivot from B2C to B2B enterprise in India?"):
-            if not is_valid_input(user_input):
-                st.warning("⚠️ Please ask a valid strategic question.")
-            else:
-                with chat_container:
-                    st.chat_message("user").markdown(user_input)
-                
-                st.session_state.messages.append({"role": "user", "content": user_input})
-                
-                with chat_container:
-                    with st.spinner("Analyzing exhaustive trade-offs against verified business facts & historical case studies..."):
-                        sys_instruct = f"""
-                        You are a pragmatic, direct, and elite veteran serial founder advising a user. 
-                        Provide an EXHAUSTIVE, highly detailed, fact-grounded strategic analysis of the user's dilemma.
-
-                        STRICT REQUIREMENTS:
-                        1. ALL FINANCIAL REFERENCES AND COST TRADE-OFFS MUST BE PRESENTED IN INDIAN RUPEES (₹ / INR).
-                        2. STRICT FACTUAL GROUNDING: Rely entirely on verified business principles, real economic data, and true startup case studies.
-                        3. Deeply break down the PROS and CONS of each option.
-                        4. Analyze SECOND-ORDER EFFECTS (what happens 6, 12, and 24 months down the road).
-                        5. Identify CRITICAL RISK VECTORS and mitigation playbooks.
-                        6. Cite real historical startup case studies (e.g., Stripe, Airbnb, Razorpay, Swiggy, Brex, Freshworks) that faced this exact crossroad.
-                        7. Conclude with a definitive, unvarnished, action-oriented FINAL RECOMMENDATION.
-                        8. USE PLAIN TEXT ONLY. DO NOT use LaTeX formatting, code blocks, or backticks.
-                        """
-                        reply = generate_ai_response(api_key, user_input, system_prompt=sys_instruct)
-                        
-                        if reply:
-                            st.chat_message("assistant").markdown(reply)
-                            st.session_state.messages.append({"role": "assistant", "content": reply})
-                            
-                            # AUTO SAVE FEATURE FOR CHAT
-                            if supabase:
-                                chat_log = f"**User Question:**\n{user_input}\n\n---\n\n**AI Strategic Advisor:**\n{reply}"
-                                try:
-                                    supabase.table("saved_reports").insert({
-                                        "user_email": st.session_state.user_email,
-                                        "report_type": "Advisor Chat",
-                                        "content": chat_log
-                                    }).execute()
-                                except Exception:
-                                    pass # Fail silently so UX is not interrupted
+        st.markdown("### Strategic Advisory Protocol")
+        st.write("Click the button below to initialize a fresh, auto-saving workspace for strategic reasoning.")
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("🚀 Initialize Live Chat Session", type="primary"):
+            st.session_state.messages = [{"role": "assistant", "content": f"Welcome back, {user_identity}! I am your AI Strategic Co-Founder. What critical decision are you evaluating today?"}]
+            st.session_state.current_chat_id = None
+            st.session_state.active_chat_mode = True
+            st.rerun()
