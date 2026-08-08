@@ -69,7 +69,7 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Space+Grotesk:wght@300;400;700&display=swap');
 
     /* Nuke Streamlit Top Header & Bottom Manage Badges */
-    [data-testid="stHeader"] { visibility: hidden !important; display: none !important; }
+    [data-testid="stHeader"] { background-color: transparent !important; }
     [data-testid="stToolbar"] { visibility: hidden !important; display: none !important; }
     [data-testid="stDecoration"] { visibility: hidden !important; display: none !important; }
     .stDeployButton { display: none !important; }
