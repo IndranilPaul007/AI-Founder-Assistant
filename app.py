@@ -257,6 +257,14 @@ st.markdown("""
         border: 3px solid #38BDF8;
         box-shadow: 0 0 20px rgba(56, 189, 248, 0.5);
     }
+    
+    /* Force Streamlit's sidebar expand button to remain visible */
+    [data-testid="collapsedControl"] {
+        display: block !important;
+        visibility: visible !important;
+        z-index: 999999 !important;
+        color: #38BDF8 !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
