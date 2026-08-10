@@ -65,55 +65,40 @@ supabase = init_supabase()
 # 2. Cinematic CSS & Deep UI Hiding
 # ---------------------------------------------------------
 st.markdown("""
-    <style>
+   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 
     /* =========================================
-       RESTORING DEFAULT HEADER
+       GLOBAL GEMINI UI SETTINGS
        ========================================= */
-    /* We are leaving the top header visible so the > arrow works perfectly. */
     footer { visibility: hidden !important; } 
 
-    /* Global Fonts & Colors - Gemini Style */
-    html, body, p, h1, h2, h3, h4, h5, h6, input, textarea, select, button {
+    html, body, [class*="st-"] {
         font-family: 'Inter', sans-serif !important;
-        color: #E3E3E3 !important;
-    }
-    
-    .stIcon, span[class*="icon"], span.material-symbols-rounded, i {
-        font-family: 'Material Symbols Rounded' !important;
-        color: inherit;
     }
 
-    /* Gemini Dark Matte Background + Subtle Blue Glow (Hue) */
-    .stApp {
+    /* Backgrounds: Main app is pure dark #131314, Sidebar is slightly lighter #1E1F20 */
+    .stApp, [data-testid="stAppViewContainer"] {
         background-color: #131314 !important;
-        background-image: radial-gradient(ellipse at top, rgba(168, 199, 250, 0.08) 0%, transparent 60%) !important;
-    }
-
-    [data-testid="stAppViewContainer"] {
-        background-color: transparent !important;
         background-image: none !important;
     }
-
-    /* Sidebar Styling */
-    section[data-testid="stSidebar"] {
-        background-color: #1E1F20 !important;
-        border-right: none !important;
-    }
     
-    section[data-testid="stSidebar"] .stMarkdown h1 {
-        font-family: 'Inter', sans-serif !important;
-        color: #A8C7FA !important;
-        font-size: 1.5rem !important;
-        font-weight: 500 !important;
-        text-shadow: none !important;
+    [data-testid="stSidebar"] {
+        background-color: #1E1F20 !important;
+        border-right: 1px solid #333538 !important;
     }
 
-    /* Clean Gemini Main Headers */
+    /* =========================================
+       TYPOGRAPHY & HEADERS
+       ========================================= */
+    [data-testid="stSidebar"] .stMarkdown h1 {
+        color: #E3E3E3 !important;
+        font-size: 1.4rem !important;
+        font-weight: 500 !important;
+    }
+
     .main-title {
-        font-family: 'Inter', sans-serif !important;
-        font-size: 2.5rem !important;
+        font-size: 2.2rem !important;
         font-weight: 500 !important;
         color: #E3E3E3 !important;
         margin-top: -20px;
@@ -126,79 +111,81 @@ st.markdown("""
         font-weight: 400;
         border-left: 3px solid #A8C7FA;
         padding-left: 15px;
-        text-shadow: none !important;
     }
 
-    /* Gemini Cards (Clean, rounded, no harsh borders) */
-    div[data-testid="stVerticalBlock"] > div[style*="flex-direction: column;"] > div {
-        background: #1E1F20 !important;
-        border-radius: 24px !important;
-        border: none !important;
-        padding: 20px;
-        box-shadow: none !important;
-        transition: transform 0.2s ease;
-    }
-
-    div[data-testid="stVerticalBlock"] > div[style*="flex-direction: column;"] > div:hover {
-        transform: translateY(-2px);
-        background: #252729 !important;
-    }
-
-    /* Clean Gemini Tabs */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-        background-color: transparent;
-    }
-
-    .stTabs [data-baseweb="tab"] {
-        height: 40px;
-        background-color: transparent !important;
-        border: none !important;
-        border-bottom: 2px solid transparent !important;
-        color: #C4C7C5 !important;
-        font-family: 'Inter', sans-serif !important;
-        transition: 0.2s;
-    }
-
-    .stTabs [data-baseweb="tab"]:hover {
-        color: #A8C7FA !important;
-        background-color: transparent !important;
-    }
-
-    .stTabs [data-baseweb="tab"][aria-selected="true"] {
-        border-bottom: 2px solid #A8C7FA !important;
-        color: #A8C7FA !important;
-        font-weight: 600 !important;
-        box-shadow: none !important;
-    }
-
-    /* Gemini Pastel Blue Buttons */
+    /* =========================================
+       MAIN ACTION BUTTONS (Pastel Blue)
+       ========================================= */
     .stButton > button {
-        background: #A8C7FA !important;
-        color: #041E49 !important;
+        background-color: #A8C7FA !important;
+        color: #041E49 !important; /* Dark blue text for readability */
         border: none !important;
-        border-radius: 20px !important;
-        font-family: 'Inter', sans-serif !important;
+        border-radius: 24px !important;
         font-weight: 500 !important;
-        text-transform: none !important;
-        letter-spacing: normal !important;
-        transition: 0.2s;
-        box-shadow: none !important;
-        width: 100%;
+        transition: 0.2s ease;
+        padding: 10px 24px !important;
     }
 
     .stButton > button:hover {
-        background: #D3E3FD !important;
+        background-color: #D3E3FD !important;
         color: #041E49 !important;
     }
 
-    /* Matte Input Fields */
+    /* =========================================
+       SIDEBAR BUTTONS (Dark & Minimal)
+       ========================================= */
+    [data-testid="stSidebar"] .stButton > button {
+        background-color: #1E1F20 !important;
+        color: #C4C7C5 !important;
+        border: none !important;
+        border-radius: 8px !important;
+        justify-content: flex-start !important; /* Aligns text to the left */
+        font-weight: 400 !important;
+    }
+
+    [data-testid="stSidebar"] .stButton > button:hover {
+        background-color: #333538 !important;
+        color: #E3E3E3 !important;
+    }
+
+    /* =========================================
+       SIDEBAR NAVIGATION TABS (Hiding the Red Dots)
+       ========================================= */
+    /* Target and hide the specific div that renders Streamlit's radio circle */
+    [data-testid="stSidebar"] div[role="radiogroup"] label > div:first-child {
+        display: none !important; 
+    }
+    
+    /* Style the actual text labels to look like hoverable tabs */
+    [data-testid="stSidebar"] div[role="radiogroup"] > label {
+        padding: 10px 15px;
+        background: transparent;
+        border-radius: 24px;
+        margin-bottom: 2px;
+        cursor: pointer;
+        color: #C4C7C5 !important;
+        transition: 0.2s ease;
+    }
+
+    [data-testid="stSidebar"] div[role="radiogroup"] > label:hover {
+        background-color: #333538 !important;
+        color: #E3E3E3 !important;
+    }
+
+    [data-testid="stSidebar"] div[role="radiogroup"] > label[aria-checked="true"] {
+        background-color: rgba(168, 199, 250, 0.12) !important;
+        color: #A8C7FA !important;
+        font-weight: 500 !important;
+    }
+
+    /* =========================================
+       INPUT FIELDS & TEXT AREAS
+       ========================================= */
     .stTextArea textarea, .stTextInput input, .stSelectbox select {
         background-color: #131314 !important;
         border: 1px solid #444746 !important;
         color: #E3E3E3 !important;
         border-radius: 12px !important;
-        box-shadow: none !important;
         padding: 12px !important;
     }
     
@@ -207,62 +194,12 @@ st.markdown("""
         box-shadow: none !important;
     }
 
-    /* Subtle Divider Line */
-    .cinematic-divider {
-        height: 1px;
-        background: #444746 !important;
-        margin: 20px 0;
-        box-shadow: none !important;
-    }
-    
-    /* Sidebar History Button Styling */
-    .history-btn > button {
-        background: transparent !important;
-        border: none !important;
-        color: #C4C7C5 !important;
-        text-align: left !important;
-        justify-content: flex-start !important;
-        padding-left: 15px !important;
-        font-size: 0.9rem !important;
-        text-transform: none !important;
-        border-radius: 8px !important;
-    }
-    .history-btn > button:hover {
-        background: rgba(168, 199, 250, 0.08) !important;
-        color: #A8C7FA !important;
-    }
-
-    /* Transform Sidebar Radio Buttons into Soft Pill Tabs */
-    div[data-testid="stSidebar"] div[role="radiogroup"] > label {
-        padding: 10px 15px;
-        background: transparent;
-        border-radius: 24px;
-        transition: all 0.2s ease;
-        margin-bottom: 2px;
-        cursor: pointer;
-    }
-    div[data-testid="stSidebar"] div[role="radiogroup"] > label:hover {
-        background: rgba(168, 199, 250, 0.08);
-        color: #A8C7FA;
-    }
-    /* Hides the actual radio circle */
-    div[data-testid="stSidebar"] div[role="radiogroup"] > label[data-baseweb="radio"] div:first-child {
-        display: none !important; 
-    }
-    div[data-testid="stSidebar"] div[role="radiogroup"] > label[aria-checked="true"] {
-        background: rgba(168, 199, 250, 0.12);
-        color: #A8C7FA;
-        font-weight: 500;
-    }
-
-    /* Profile Pic Circle styling */
+    /* Profile Pic */
     .profile-pic {
         border-radius: 50%;
         width: 120px;
         height: 120px;
         object-fit: cover;
-        border: none !important;
-        box-shadow: none !important;
     }
     </style>
 """, unsafe_allow_html=True)
