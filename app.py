@@ -65,206 +65,192 @@ supabase = init_supabase()
 # 2. Cinematic CSS & Deep UI Hiding
 # ---------------------------------------------------------
 st.markdown("""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+   <style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-    /* =========================================
-       RESTORING DEFAULT HEADER
-       ========================================= */
-    /* We are leaving the top header visible so the > arrow works perfectly. */
-    footer { visibility: hidden !important; } 
+:root {
+    --bg: #0b1220;
+    --surface: #111c2e;
+    --surface-hover: #16243a;
+    --border: #263854;
+    --text: #eef4ff;
+    --muted: #9caec7;
+    --primary: #3b82f6;
+    --primary-hover: #2563eb;
+    --accent: #22c55e;
+}
 
-    /* Global Fonts & Colors - Gemini Style */
-    html, body, p, h1, h2, h3, h4, h5, h6, input, textarea, select, button {
-        font-family: 'Inter', sans-serif !important;
-        color: #E3E3E3 !important;
-    }
-    
-    .stIcon, span[class*="icon"], span.material-symbols-rounded, i {
-        font-family: 'Material Symbols Rounded' !important;
-        color: inherit;
-    }
+/* Base */
+html, body, [class*="css"], input, textarea, button {
+    font-family: "Inter", sans-serif !important;
+}
 
-    /* Gemini Dark Matte Background + Subtle Blue Glow (Hue) */
-    .stApp {
-        background-color: #131314 !important;
-        background-image: radial-gradient(ellipse at top, rgba(168, 199, 250, 0.08) 0%, transparent 60%) !important;
-    }
+.stApp {
+    background:
+        radial-gradient(circle at 75% 0%, rgba(59, 130, 246, 0.14), transparent 32%),
+        linear-gradient(135deg, #0b1220 0%, #0e1726 55%, #0a1321 100%);
+    color: var(--text);
+}
 
-    [data-testid="stAppViewContainer"] {
-        background-color: transparent !important;
-        background-image: none !important;
-    }
+[data-testid="stHeader"] {
+    background: rgba(11, 18, 32, 0.78);
+    backdrop-filter: blur(12px);
+}
 
-    /* Sidebar Styling */
-    section[data-testid="stSidebar"] {
-        background-color: #1E1F20 !important;
-        border-right: none !important;
-    }
-    
-    section[data-testid="stSidebar"] .stMarkdown h1 {
-        font-family: 'Inter', sans-serif !important;
-        color: #A8C7FA !important;
-        font-size: 1.5rem !important;
-        font-weight: 500 !important;
-        text-shadow: none !important;
-    }
+footer { visibility: hidden; }
 
-    /* Clean Gemini Main Headers */
-    .main-title {
-        font-family: 'Inter', sans-serif !important;
-        font-size: 2.5rem !important;
-        font-weight: 500 !important;
-        color: #E3E3E3 !important;
-        margin-top: -20px;
-    }
+/* Sidebar */
+section[data-testid="stSidebar"] {
+    background: #0d1626;
+    border-right: 1px solid rgba(148, 163, 184, 0.14);
+}
 
-    .subtitle {
-        font-size: 1.1rem !important;
-        color: #A8C7FA !important;
-        margin-bottom: 25px;
-        font-weight: 400;
-        border-left: 3px solid #A8C7FA;
-        padding-left: 15px;
-        text-shadow: none !important;
-    }
+section[data-testid="stSidebar"] h1 {
+    color: #93c5fd !important;
+    font-size: 1.55rem !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.03em;
+}
 
-    /* Gemini Cards (Clean, rounded, no harsh borders) */
-    div[data-testid="stVerticalBlock"] > div[style*="flex-direction: column;"] > div {
-        background: #1E1F20 !important;
-        border-radius: 24px !important;
-        border: none !important;
-        padding: 20px;
-        box-shadow: none !important;
-        transition: transform 0.2s ease;
-    }
+section[data-testid="stSidebar"] hr {
+    border-color: rgba(148, 163, 184, 0.16);
+}
 
-    div[data-testid="stVerticalBlock"] > div[style*="flex-direction: column;"] > div:hover {
-        transform: translateY(-2px);
-        background: #252729 !important;
-    }
+/* Main heading classes */
+.main-title {
+    color: var(--text) !important;
+    font-size: clamp(2rem, 4vw, 3rem) !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.04em;
+    margin: 0 0 0.35rem !important;
+}
 
-    /* Clean Gemini Tabs */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-        background-color: transparent;
-    }
+.subtitle {
+    color: #93c5fd !important;
+    border-left: 3px solid var(--primary);
+    padding-left: 0.85rem;
+    font-size: 1.05rem !important;
+    font-weight: 500;
+    margin-bottom: 2rem;
+}
 
-    .stTabs [data-baseweb="tab"] {
-        height: 40px;
-        background-color: transparent !important;
-        border: none !important;
-        border-bottom: 2px solid transparent !important;
-        color: #C4C7C5 !important;
-        font-family: 'Inter', sans-serif !important;
-        transition: 0.2s;
-    }
+/* Typography */
+h1, h2, h3, h4, p, label, .stMarkdown {
+    color: var(--text) !important;
+}
 
-    .stTabs [data-baseweb="tab"]:hover {
-        color: #A8C7FA !important;
-        background-color: transparent !important;
-    }
+p, .stCaption, [data-testid="stWidgetLabel"] p {
+    color: var(--muted) !important;
+}
 
-    .stTabs [data-baseweb="tab"][aria-selected="true"] {
-        border-bottom: 2px solid #A8C7FA !important;
-        color: #A8C7FA !important;
-        font-weight: 600 !important;
-        box-shadow: none !important;
-    }
+/* Inputs */
+.stTextInput input,
+.stTextArea textarea,
+[data-baseweb="select"] > div {
+    background: rgba(15, 27, 45, 0.92) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 10px !important;
+    box-shadow: none !important;
+}
 
-    /* Gemini Pastel Blue Buttons */
-    .stButton > button {
-        background: #A8C7FA !important;
-        color: #041E49 !important;
-        border: none !important;
-        border-radius: 20px !important;
-        font-family: 'Inter', sans-serif !important;
-        font-weight: 500 !important;
-        text-transform: none !important;
-        letter-spacing: normal !important;
-        transition: 0.2s;
-        box-shadow: none !important;
-        width: 100%;
-    }
+.stTextInput input,
+.stTextArea textarea {
+    padding: 0.8rem 0.9rem !important;
+}
 
-    .stButton > button:hover {
-        background: #D3E3FD !important;
-        color: #041E49 !important;
-    }
+.stTextInput input::placeholder,
+.stTextArea textarea::placeholder {
+    color: #71839f !important;
+    opacity: 1;
+}
 
-    /* Matte Input Fields */
-    .stTextArea textarea, .stTextInput input, .stSelectbox select {
-        background-color: #131314 !important;
-        border: 1px solid #444746 !important;
-        color: #E3E3E3 !important;
-        border-radius: 12px !important;
-        box-shadow: none !important;
-        padding: 12px !important;
-    }
-    
-    .stTextArea textarea:focus, .stTextInput input:focus {
-        border-color: #141A29 !important;
-        box-shadow: none !important;
-    }
+.stTextInput input:focus,
+.stTextArea textarea:focus,
+[data-baseweb="select"] > div:focus-within {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18) !important;
+}
 
-    /* Subtle Divider Line */
-    .cinematic-divider {
-        height: 1px;
-        background: #444746 !important;
-        margin: 20px 0;
-        box-shadow: none !important;
-    }
-    
-    /* Sidebar History Button Styling */
-    .history-btn > button {
-        background: transparent !important;
-        border: none !important;
-        color: #141A29 !important;
-        text-align: left !important;
-        justify-content: flex-start !important;
-        padding-left: 15px !important;
-        font-size: 0.9rem !important;
-        text-transform: none !important;
-        border-radius: 8px !important;
-    }
-    .history-btn > button:hover {
-        background: rgba(168, 199, 250, 0.08) !important;
-        color: #A8C7FA !important;
-    }
+/* Buttons */
+.stButton > button {
+    width: 100%;
+    min-height: 2.7rem;
+    border: 1px solid transparent !important;
+    border-radius: 10px !important;
+    background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.01em;
+    box-shadow: 0 7px 18px rgba(37, 99, 235, 0.22);
+    transition: all 0.2s ease;
+}
 
-    /* Transform Sidebar Radio Buttons into Soft Pill Tabs */
-    div[data-testid="stSidebar"] div[role="radiogroup"] > label {
-        padding: 10px 15px;
-        background: transparent;
-        border-radius: 24px;
-        transition: all 0.2s ease;
-        margin-bottom: 2px;
-        cursor: pointer;
-    }
-    div[data-testid="stSidebar"] div[role="radiogroup"] > label:hover {
-        background: rgba(168, 199, 250, 0.08);
-        color: #A8C7FA;
-    }
-    /* Hides the actual radio circle */
-    div[data-testid="stSidebar"] div[role="radiogroup"] > label[data-baseweb="radio"] div:first-child {
-        display: none !important; 
-    }
-    div[data-testid="stSidebar"] div[role="radiogroup"] > label[aria-checked="true"] {
-        background: rgba(168, 199, 250, 0.12);
-        color: #141A29;
-        font-weight: 500;
-    }
+.stButton > button:hover {
+    background: linear-gradient(135deg, #60a5fa, #3b82f6) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 22px rgba(37, 99, 235, 0.3);
+}
 
-    /* Profile Pic Circle styling */
-    .profile-pic {
-        border-radius: 50%;
-        width: 120px;
-        height: 120px;
-        object-fit: cover;
-        border: none !important;
-        box-shadow: none !important;
-    }
-    </style>
+.stButton > button:active {
+    transform: translateY(0);
+}
+
+/* Sidebar radio navigation */
+section[data-testid="stSidebar"] div[role="radiogroup"] label {
+    border-radius: 9px;
+    padding: 0.62rem 0.75rem;
+    margin: 0.15rem 0;
+    transition: background 0.18s ease;
+}
+
+section[data-testid="stSidebar"] div[role="radiogroup"] label:hover {
+    background: rgba(59, 130, 246, 0.10);
+}
+
+section[data-testid="stSidebar"] div[role="radiogroup"] label[aria-checked="true"] {
+    background: rgba(59, 130, 246, 0.17);
+    border-left: 3px solid var(--primary);
+}
+
+section[data-testid="stSidebar"] div[role="radiogroup"] label[aria-checked="true"] p {
+    color: #bfdbfe !important;
+    font-weight: 600 !important;
+}
+
+/* Tabs */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 0.4rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.stTabs [data-baseweb="tab"] {
+    color: var(--muted) !important;
+    padding: 0.7rem 1rem !important;
+}
+
+.stTabs [data-baseweb="tab"][aria-selected="true"] {
+    color: #bfdbfe !important;
+    border-bottom: 2px solid var(--primary) !important;
+    font-weight: 600 !important;
+}
+
+/* Optional reusable content card */
+.professional-card {
+    background: rgba(17, 28, 46, 0.78);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.4rem;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+}
+
+/* Divider */
+.cinematic-divider {
+    height: 1px;
+    margin: 1.5rem 0;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+}
+</style>
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
