@@ -66,39 +66,19 @@ supabase = init_supabase()
 # ---------------------------------------------------------
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Space+Grotesk:wght@300;400;700&display=swap');
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 
-    /* Nuke Streamlit Top Header & Bottom Manage Badges */
-    /* Make the header invisible but keep it in the structure */
-    [data-testid="stHeader"] { background: transparent !important; }
-    
-    /* Force the sidebar expand arrow to show up with a cyberpunk style */
-    [data-testid="collapsedControl"] { 
-        visibility: visible !important; 
-        display: flex !important; 
-        color: #38BDF8 !important; 
-        background: rgba(15, 23, 42, 0.8) !important;
-        border-radius: 8px !important;
-        border: 1px solid rgba(56, 189, 248, 0.4) !important;
-        margin-top: 10px !important;
-    }
-    
-    [data-testid="stToolbar"] { visibility: hidden !important; display: none !important; }
-    [data-testid="stDecoration"] { visibility: hidden !important; display: none !important; }
-    .stDeployButton { display: none !important; }
-    #MainMenu { visibility: hidden !important; }
-    footer { visibility: hidden !important; }
-    
-    /* Remove the 'Manage App' watermark */
-    .viewerBadge_container { display: none !important; }
-    .viewerBadge_link { display: none !important; }
-    div[class^="viewerBadge"] { display: none !important; }
-    iframe[title="streamlitApp"] ~ div { display: none !important; }
+    /* =========================================
+       RESTORING DEFAULT HEADER
+       ========================================= */
+    /* We are leaving the top header visible so the > arrow works perfectly. */
+    footer { visibility: hidden !important; } 
 
-    /* Global Fonts & Colors */
+    /* Global Fonts & Colors - Gemini Style */
     html, body, p, h1, h2, h3, h4, h5, h6, input, textarea, select, button {
-        font-family: 'Space Grotesk', sans-serif;
-        color: #C0C0C0;
+        font-family: 'Inter', sans-serif !important;
+        color: #E3E3E3 !important;
     }
     
     .stIcon, span[class*="icon"], span.material-symbols-rounded, i {
@@ -106,178 +86,186 @@ st.markdown("""
         color: inherit;
     }
 
-    /* Animated Cyberspace Background */
+    /* Gemini Dark Matte Background + Subtle Blue Glow (Hue) */
     .stApp {
-        background: linear-gradient(270deg, #050509, #0a0f24, #050509, #0a0514);
-        background-size: 400% 400%;
-        animation: energyPulse 15s ease infinite;
+        background-color: #131314 !important;
+        background-image: radial-gradient(ellipse at top, rgba(168, 199, 250, 0.08) 0%, transparent 60%) !important;
     }
 
     [data-testid="stAppViewContainer"] {
         background-color: transparent !important;
-        background-image: 
-            linear-gradient(rgba(56, 189, 248, 0.07) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(56, 189, 248, 0.07) 1px, transparent 1px) !important;
-        background-size: 40px 40px !important;
-        animation: scrollGrid 10s linear infinite !important;
-    }
-
-    @keyframes energyPulse {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-    }
-    @keyframes scrollGrid {
-        0% { background-position: 0px 0px; }
-        100% { background-position: 40px 40px; }
+        background-image: none !important;
     }
 
     /* Sidebar Styling */
     section[data-testid="stSidebar"] {
-        background-color: rgba(10, 10, 20, 0.75) !important;
-        border-right: 1px solid rgba(56, 189, 248, 0.2);
-        backdrop-filter: blur(15px);
-        z-index: 20;
+        background-color: #1E1F20 !important;
+        border-right: none !important;
     }
+    
     section[data-testid="stSidebar"] .stMarkdown h1 {
-        font-family: 'Orbitron', sans-serif;
-        color: #38BDF8;
-        text-shadow: 0 0 10px rgba(56, 189, 248, 0.8);
+        font-family: 'Inter', sans-serif !important;
+        color: #A8C7FA !important;
+        font-size: 1.5rem !important;
+        font-weight: 500 !important;
+        text-shadow: none !important;
     }
 
-    /* Transform Sidebar Radio Buttons into Vertical Tabs */
-    div[data-testid="stSidebar"] div[role="radiogroup"] > label {
-        padding: 10px 15px;
-        background: transparent;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-        margin-bottom: 5px;
-        cursor: pointer;
-    }
-    div[data-testid="stSidebar"] div[role="radiogroup"] > label:hover {
-        background: rgba(56, 189, 248, 0.1);
-        color: white;
-    }
-    div[data-testid="stSidebar"] div[role="radiogroup"] > label[data-baseweb="radio"] div:first-child {
-        display: none !important; /* Hides the actual radio circle */
-    }
-    div[data-testid="stSidebar"] div[role="radiogroup"] > label[aria-checked="true"] {
-        background: rgba(56, 189, 248, 0.2);
-        border-left: 3px solid #38BDF8;
-        color: white;
-        font-weight: bold;
-    }
-
-    /* Cinematic Header styling */
+    /* Clean Gemini Main Headers */
     .main-title {
-        font-family: 'Orbitron', sans-serif;
-        font-size: 3.5rem;
-        font-weight: 700;
-        background: linear-gradient(90deg, #38BDF8, #818CF8, #38BDF8);
-        background-size: 200% auto;
-        color: transparent;
-        -webkit-background-clip: text;
-        background-clip: text;
-        text-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
+        font-family: 'Inter', sans-serif !important;
+        font-size: 2.5rem !important;
+        font-weight: 500 !important;
+        color: #E3E3E3 !important;
         margin-top: -20px;
     }
+
     .subtitle {
-        font-size: 1.3rem;
-        color: #38BDF8;
+        font-size: 1.1rem !important;
+        color: #A8C7FA !important;
         margin-bottom: 25px;
         font-weight: 400;
-        border-left: 4px solid #38BDF8;
+        border-left: 3px solid #A8C7FA;
         padding-left: 15px;
-        text-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+        text-shadow: none !important;
     }
 
-    /* 3D Glassmorphism Cards */
+    /* Gemini Cards (Clean, rounded, no harsh borders) */
     div[data-testid="stVerticalBlock"] > div[style*="flex-direction: column;"] > div {
-        background: rgba(15, 23, 42, 0.65);
-        border-radius: 16px;
-        border: 1px solid rgba(56, 189, 248, 0.2);
-        backdrop-filter: blur(16px);
+        background: #1E1F20 !important;
+        border-radius: 24px !important;
+        border: none !important;
         padding: 20px;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6);
-        transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+        box-shadow: none !important;
+        transition: transform 0.2s ease;
     }
 
     div[data-testid="stVerticalBlock"] > div[style*="flex-direction: column;"] > div:hover {
-        transform: translateY(-4px);
-        border-color: rgba(56, 189, 248, 0.5);
-        box-shadow: 0 10px 40px 0 rgba(56, 189, 248, 0.2);
+        transform: translateY(-2px);
+        background: #252729 !important;
     }
 
-    /* Buttons & Inputs */
+    /* Clean Gemini Tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 10px;
+        background-color: transparent;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        height: 40px;
+        background-color: transparent !important;
+        border: none !important;
+        border-bottom: 2px solid transparent !important;
+        color: #C4C7C5 !important;
+        font-family: 'Inter', sans-serif !important;
+        transition: 0.2s;
+    }
+
+    .stTabs [data-baseweb="tab"]:hover {
+        color: #A8C7FA !important;
+        background-color: transparent !important;
+    }
+
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {
+        border-bottom: 2px solid #A8C7FA !important;
+        color: #A8C7FA !important;
+        font-weight: 600 !important;
+        box-shadow: none !important;
+    }
+
+    /* Gemini Pastel Blue Buttons */
     .stButton > button {
-        background: linear-gradient(45deg, #0F172A, #1E1B4B);
-        color: #38BDF8;
-        border: 1px solid #38BDF8;
-        border-radius: 8px;
-        font-family: 'Orbitron', sans-serif;
-        text-transform: uppercase;
-        letter-spacing: 2px;
-        transition: 0.3s;
-        box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+        background: #A8C7FA !important;
+        color: #041E49 !important;
+        border: none !important;
+        border-radius: 20px !important;
+        font-family: 'Inter', sans-serif !important;
+        font-weight: 500 !important;
+        text-transform: none !important;
+        letter-spacing: normal !important;
+        transition: 0.2s;
+        box-shadow: none !important;
         width: 100%;
     }
+
     .stButton > button:hover {
-        background: linear-gradient(45deg, #38BDF8, #818CF8);
-        box-shadow: 0 0 25px rgba(56, 189, 248, 0.6);
-        color: #050509;
-        border-color: transparent;
-    }
-    .stTextArea textarea, .stTextInput input, .stSelectbox select {
-        background-color: rgba(15, 23, 42, 0.8) !important;
-        border: 1px solid rgba(56, 189, 248, 0.4) !important;
-        color: white !important;
-        border-radius: 8px !important;
-    }
-    .stTextArea textarea:focus, .stTextInput input:focus {
-        border-color: #38BDF8 !important;
-        box-shadow: 0 0 10px rgba(56, 189, 248, 0.4) !important;
+        background: #D3E3FD !important;
+        color: #041E49 !important;
     }
 
-    .cinematic-divider {
-        height: 2px;
-        background: linear-gradient(90deg, transparent, #38BDF8, #818CF8, transparent);
-        margin: 20px 0;
-        box-shadow: 0 0 10px #38BDF8;
+    /* Matte Input Fields */
+    .stTextArea textarea, .stTextInput input, .stSelectbox select {
+        background-color: #131314 !important;
+        border: 1px solid #444746 !important;
+        color: #E3E3E3 !important;
+        border-radius: 12px !important;
+        box-shadow: none !important;
+        padding: 12px !important;
     }
+    
+    .stTextArea textarea:focus, .stTextInput input:focus {
+        border-color: #A8C7FA !important;
+        box-shadow: none !important;
+    }
+
+    /* Subtle Divider Line */
+    .cinematic-divider {
+        height: 1px;
+        background: #444746 !important;
+        margin: 20px 0;
+        box-shadow: none !important;
+    }
+    
+    /* Sidebar History Button Styling */
     .history-btn > button {
         background: transparent !important;
-        border: 1px solid rgba(56, 189, 248, 0.2) !important;
-        color: #94A3B8 !important;
+        border: none !important;
+        color: #C4C7C5 !important;
         text-align: left !important;
         justify-content: flex-start !important;
         padding-left: 15px !important;
-        font-size: 0.85rem !important;
+        font-size: 0.9rem !important;
         text-transform: none !important;
-        box-shadow: none !important;
+        border-radius: 8px !important;
     }
     .history-btn > button:hover {
-        background: rgba(56, 189, 248, 0.1) !important;
-        color: #38BDF8 !important;
-        border-color: #38BDF8 !important;
+        background: rgba(168, 199, 250, 0.08) !important;
+        color: #A8C7FA !important;
     }
-    
+
+    /* Transform Sidebar Radio Buttons into Soft Pill Tabs */
+    div[data-testid="stSidebar"] div[role="radiogroup"] > label {
+        padding: 10px 15px;
+        background: transparent;
+        border-radius: 24px;
+        transition: all 0.2s ease;
+        margin-bottom: 2px;
+        cursor: pointer;
+    }
+    div[data-testid="stSidebar"] div[role="radiogroup"] > label:hover {
+        background: rgba(168, 199, 250, 0.08);
+        color: #A8C7FA;
+    }
+    /* Hides the actual radio circle */
+    div[data-testid="stSidebar"] div[role="radiogroup"] > label[data-baseweb="radio"] div:first-child {
+        display: none !important; 
+    }
+    div[data-testid="stSidebar"] div[role="radiogroup"] > label[aria-checked="true"] {
+        background: rgba(168, 199, 250, 0.12);
+        color: #A8C7FA;
+        font-weight: 500;
+    }
+
     /* Profile Pic Circle styling */
     .profile-pic {
         border-radius: 50%;
-        width: 150px;
-        height: 150px;
+        width: 120px;
+        height: 120px;
         object-fit: cover;
-        border: 3px solid #38BDF8;
-        box-shadow: 0 0 20px rgba(56, 189, 248, 0.5);
+        border: none !important;
+        box-shadow: none !important;
     }
-    
-    /* Force Streamlit's sidebar expand button to remain visible */
-    [data-testid="collapsedControl"] {
-        display: block !important;
-        visibility: visible !important;
-        z-index: 999999 !important;
-        color: #38BDF8 !important;
-    }
+    </style>
     </style>
 """, unsafe_allow_html=True)
 
