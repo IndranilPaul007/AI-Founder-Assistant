@@ -203,7 +203,7 @@ st.markdown("""
     }
     
     .stTextArea textarea:focus, .stTextInput input:focus {
-        border-color: #A8C7FA !important;
+        border-color: #141A29 !important;
         box-shadow: none !important;
     }
 
@@ -219,7 +219,7 @@ st.markdown("""
     .history-btn > button {
         background: transparent !important;
         border: none !important;
-        color: #C4C7C5 !important;
+        color: #141A29 !important;
         text-align: left !important;
         justify-content: flex-start !important;
         padding-left: 15px !important;
@@ -251,7 +251,7 @@ st.markdown("""
     }
     div[data-testid="stSidebar"] div[role="radiogroup"] > label[aria-checked="true"] {
         background: rgba(168, 199, 250, 0.12);
-        color: #A8C7FA;
+        color: #141A29;
         font-weight: 500;
     }
 
