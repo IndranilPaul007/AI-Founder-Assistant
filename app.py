@@ -251,28 +251,41 @@ section[data-testid="stSidebar"] div[role="radiogroup"] label[aria-checked="true
     background: linear-gradient(90deg, transparent, var(--border), transparent);
 }
 
-/* Hide only the upper-right Streamlit actions */
-[data-testid="stToolbar"],
-[data-testid="stToolbarActions"],
-[data-testid="stHeaderActionElements"],
-[data-testid="stAppDeployButton"],
-[data-testid="stMainMenu"],
-#MainMenu {
-    display: none !important;
-}
-
-/* Keep the left sidebar expand/collapse arrow visible */
-header[data-testid="stHeader"] {
-    height: 3.75rem !important;
-    background: transparent !important;
-}
-
-header[data-testid="stHeader"] [data-testid="stSidebarCollapsedControl"],
-header[data-testid="stHeader"] [data-testid="stSidebarCollapseButton"] {
+/* Restore and style Streamlit's left sidebar-open control */
+div[data-testid="collapsedControl"],
+[data-testid="stSidebarCollapsedControl"] {
     display: flex !important;
     visibility: visible !important;
     opacity: 1 !important;
+    position: fixed !important;
+    top: 0.55rem !important;
+    left: 0.75rem !important;
+    z-index: 999999 !important;
+}
+
+/* Ensure the actual arrow button inside remains clickable */
+div[data-testid="collapsedControl"] button,
+[data-testid="stSidebarCollapsedControl"] button {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    width: 2.5rem !important;
+    height: 2.5rem !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 8px !important;
+    background: #111c2e !important;
     color: #bfdbfe !important;
+    border: 1px solid #263854 !important;
+}
+
+/* Hide only the upper-right toolbar */
+div[data-testid="stToolbar"],
+[data-testid="stToolbarActions"],
+[data-testid="stHeaderActionElements"],
+[data-testid="stAppDeployButton"],
+#MainMenu {
+    display: none !important;
 }
 </style>
 """, unsafe_allow_html=True)
