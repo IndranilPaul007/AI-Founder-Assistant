@@ -253,19 +253,6 @@ section[data-testid="stSidebar"] div[role="radiogroup"] label[aria-checked="true
 </style>
 """, unsafe_allow_html=True)
 
-st.sidebar.markdown('<div class="profile-section">', unsafe_allow_html=True)
-st.sidebar.markdown('<div class="profile-name">Indranil Paul</div>', unsafe_allow_html=True)
-
-st.sidebar.markdown('<div class="profile-action">', unsafe_allow_html=True)
-if st.sidebar.button("⚙ Profile & Settings", use_container_width=True):
-    pass
-st.sidebar.markdown('</div>', unsafe_allow_html=True)
-
-st.sidebar.markdown('<div class="logout-action">', unsafe_allow_html=True)
-if st.sidebar.button("Disconnect", use_container_width=True):
-    pass
-st.sidebar.markdown('</div></div>', unsafe_allow_html=True)
-
 # ---------------------------------------------------------
 # 3. Helper Functions, Nemotron SDK & PPT Generator
 # ---------------------------------------------------------
