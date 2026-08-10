@@ -251,8 +251,7 @@ section[data-testid="stSidebar"] div[role="radiogroup"] label[aria-checked="true
     background: linear-gradient(90deg, transparent, var(--border), transparent);
 }
 
-/* Remove the hosted Streamlit toolbar:
-   Share, star, edit, GitHub and three-dot menu */
+/* Hide only the upper-right Streamlit actions */
 [data-testid="stToolbar"],
 [data-testid="stToolbarActions"],
 [data-testid="stHeaderActionElements"],
@@ -260,18 +259,20 @@ section[data-testid="stSidebar"] div[role="radiogroup"] label[aria-checked="true
 [data-testid="stMainMenu"],
 #MainMenu {
     display: none !important;
-    visibility: hidden !important;
 }
 
-/* Strong fallback for toolbar buttons inside the top header */
-header[data-testid="stHeader"] button,
-header[data-testid="stHeader"] [role="button"] {
-    display: none !important;
-}
-
-/* Keep the header visually clean */
+/* Keep the left sidebar expand/collapse arrow visible */
 header[data-testid="stHeader"] {
+    height: 3.75rem !important;
     background: transparent !important;
+}
+
+header[data-testid="stHeader"] [data-testid="stSidebarCollapsedControl"],
+header[data-testid="stHeader"] [data-testid="stSidebarCollapseButton"] {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    color: #bfdbfe !important;
 }
 </style>
 """, unsafe_allow_html=True)
